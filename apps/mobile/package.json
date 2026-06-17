@@ -1,0 +1,50 @@
+{
+  "name": "@contractor-bidder/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start --go --lan",
+    "start:go": "expo start --go --lan",
+    "start:dev-client": "cross-env EXPO_DEV_CLIENT=1 expo start --dev-client --lan",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "eas:login": "eas login",
+    "eas:init": "eas init",
+    "eas:build:ios:dev": "eas build --profile development --platform ios",
+    "eas:device:create": "eas device:create",
+    "install:iphone": "powershell -ExecutionPolicy Bypass -File ./scripts/install-on-iphone.ps1",
+    "eas:build:android:dev": "eas build --profile development --platform android"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-community/slider": "5.0.1",
+    "@react-navigation/bottom-tabs": "^7.16.2",
+    "@react-navigation/native": "^7.2.5",
+    "@react-navigation/native-stack": "^7.16.0",
+    "expo": "^54.0.35",
+    "expo-dev-client": "~6.0.21",
+    "expo-device": "~8.0.10",
+    "expo-image-picker": "~17.0.11",
+    "expo-location": "~19.0.8",
+    "expo-notifications": "~0.32.17",
+    "expo-splash-screen": "~31.0.13",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-maps": "1.20.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "cross-env": "^7.0.3",
+    "eas-cli": "^20.1.0",
+    "typescript": "~5.9.2"
+  }
+}

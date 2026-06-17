@@ -1,0 +1,314 @@
+// ContractorBidder data model.
+//
+// NOTE ON GEOSPATIAL: The spec calls for PostGIS `geography(Point,4326)` columns
+// and `ST_DWithin` radius queries. Prisma does not model the geography type
+// natively, so this scaffold stores plain `lat`/`lng` Float columns plus
+// coarse-rounded variants and computes distance with Haversine in SQL. This
+// runs on stock PostgreSQL (and the PostGIS docker image). To adopt PostGIS:
+//   1. enable the extension (`postgis`) in a migration,
+//   2. add `Unsupported("geography(Point,4326)")` columns + GIST indexes,
+//   3. backfill from lat/lng, and switch the search query to ST_DWithin.
+
+generator client {
+  // The new ESM/TS "prisma-client" generator with engineType="client" produces a
+  // Rust-free client (TypeScript query compiler + WASM), so no native query-engine
+  // binary is needed. This is what lets the API run on Windows-on-ARM64, which has
+  // no prebuilt Prisma engine. Requires a driver adapter (@prisma/adapter-pg).
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  engineType   = "client"
+  runtime      = "nodejs"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  HOMEOWNER
+  CONTRACTOR
+  ADMIN
+}
+
+enum AuthProvider {
+  PASSWORD
+  GOOGLE
+  APPLE
+}
+
+enum LocationPrecision {
+  PRECISE
+  COARSE
+}
+
+enum JobStatus {
+  OPEN
+  UNDER_REVIEW
+  CLOSED
+  CANCELLED
+  AWARDED
+}
+
+enum BidStatus {
+  PENDING
+  WITHDRAWN
+  DECLINED
+  ACCEPTED
+  EXPIRED
+}
+
+enum MessageVisibility {
+  ALL_BIDDERS
+  DIRECT
+}
+
+enum NotificationType {
+  JOB_MATCH
+  NEW_BID
+  BID_SUBMITTED
+  BID_ACCEPTED
+  MESSAGE
+  PAYMENT_REQUIRED
+}
+
+enum PaymentDirection {
+  HOMEOWNER_ACCEPT_FEE
+  CONTRACTOR_ACCEPT_FEE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  STRIPE
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  email        String       @unique
+  phone        String?
+  homeAddress  String?      @map("home_address")
+  passwordHash String?      @map("password_hash")
+  authProvider AuthProvider @default(PASSWORD) @map("auth_provider")
+  role         Role
+  firstName    String       @map("first_name")
+  lastName     String       @map("last_name")
+  isVerified   Boolean      @default(false) @map("is_verified")
+  isBanned     Boolean      @default(false) @map("is_banned")
+  bannedAt     DateTime?    @map("banned_at")
+  tosAcceptedAt DateTime?   @map("tos_accepted_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  contractorProfile ContractorProfile?
+  jobs              Job[]            @relation("JobCreator")
+  bids              Bid[]
+  sentMessages      Message[]        @relation("MessageFrom")
+  receivedMessages  Message[]        @relation("MessageTo")
+  notifications     Notification[]
+  payments          Payment[]
+  auditLogs         AuditLog[]
+  devices           Device[]
+  reviewsWritten    ContractorReview[] @relation("ReviewAuthor")
+
+  @@map("users")
+}
+
+model Device {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  platform  DevicePlatform
+  token     String         @unique
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model ContractorProfile {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  companyName     String?  @map("company_name")
+  logoUrl         String?  @map("logo_url")
+  description     String?
+  businessAddress String?  @map("business_address")
+  serviceTypes    String[] @map("service_types")
+  serviceRadiusKm Float    @default(25) @map("service_radius_km")
+  // PostGIS upgrade: replace baseLat/baseLng with geography(Point,4326).
+  baseLat         Float?   @map("base_lat")
+  baseLng         Float?   @map("base_lng")
+  googleReviewsUrl String? @map("google_reviews_url")
+  licenseNumber   String?  @map("license_number")
+  insuranceDocUrl String?  @map("insurance_doc_url")
+  ratingAgg       Float    @default(0) @map("rating_agg")
+  ratingCount     Int      @default(0) @map("rating_count")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([serviceTypes], type: Gin)
+  @@map("contractor_profiles")
+}
+
+model Job {
+  id                  String            @id @default(uuid()) @db.Uuid
+  createdByUserId     String            @map("created_by_user_id") @db.Uuid
+  createdByRole       Role              @map("created_by_role")
+  title               String
+  description         String
+  workType            String            @map("work_type")
+  desiredDatetimeStart DateTime         @map("desired_datetime_start")
+  desiredDatetimeEnd  DateTime?         @map("desired_datetime_end")
+  photos              String[]
+  addressText         String            @map("address_text")
+  contactPhone        String?           @map("contact_phone")
+  locationPrecision   LocationPrecision @default(PRECISE) @map("location_precision")
+  // Precise coordinates: only revealed to owner + accepted contractor.
+  preciseLat          Float?            @map("precise_lat")
+  preciseLng          Float?            @map("precise_lng")
+  // Coarse coordinates: snapped to ~1km grid, used for discovery/notifications.
+  coarseLat           Float             @map("coarse_lat")
+  coarseLng           Float             @map("coarse_lng")
+  budgetMin           Int?              @map("budget_min")
+  budgetMax           Int?              @map("budget_max")
+  currency            String            @default("USD")
+  status              JobStatus         @default(OPEN)
+  acceptedBidId       String?           @unique @map("accepted_bid_id") @db.Uuid
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  createdBy   User      @relation("JobCreator", fields: [createdByUserId], references: [id])
+  bids        Bid[]     @relation("JobBids")
+  acceptedBid Bid?      @relation("AcceptedBid", fields: [acceptedBidId], references: [id])
+  messages    Message[]
+  payments    Payment[]
+  review      ContractorReview?
+
+  @@index([status, workType])
+  @@index([coarseLat, coarseLng])
+  @@map("jobs")
+}
+
+model Bid {
+  id               String    @id @default(uuid()) @db.Uuid
+  jobId            String    @map("job_id") @db.Uuid
+  contractorUserId String    @map("contractor_user_id") @db.Uuid
+  amount           Int // cents
+  currency         String    @default("USD")
+  message          String?
+  status           BidStatus @default(PENDING)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  job        Job       @relation("JobBids", fields: [jobId], references: [id], onDelete: Cascade)
+  contractor User      @relation(fields: [contractorUserId], references: [id])
+  acceptedOn Job?      @relation("AcceptedBid")
+  payments   Payment[]
+
+  // Prevent duplicate bids by the same contractor on the same job.
+  @@unique([jobId, contractorUserId])
+  @@index([jobId])
+  @@map("bids")
+}
+
+model Message {
+  id          String            @id @default(uuid()) @db.Uuid
+  jobId       String            @map("job_id") @db.Uuid
+  fromUserId  String            @map("from_user_id") @db.Uuid
+  toUserId    String            @map("to_user_id") @db.Uuid
+  body        String
+  attachments String[]
+  visibility  MessageVisibility @default(DIRECT)
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  job      Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  fromUser User @relation("MessageFrom", fields: [fromUserId], references: [id])
+  toUser   User @relation("MessageTo", fields: [toUserId], references: [id])
+
+  @@index([jobId])
+  @@map("messages")
+}
+
+model ContractorReview {
+  id               String   @id @default(uuid()) @db.Uuid
+  jobId            String   @unique @map("job_id") @db.Uuid
+  contractorUserId String   @map("contractor_user_id") @db.Uuid
+  reviewerUserId   String   @map("reviewer_user_id") @db.Uuid
+  rating           Int
+  comment          String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  job      Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reviewer User @relation("ReviewAuthor", fields: [reviewerUserId], references: [id])
+
+  @@index([contractorUserId])
+  @@map("contractor_reviews")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  data      Json
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model Payment {
+  id                     String           @id @default(uuid()) @db.Uuid
+  userId                 String           @map("user_id") @db.Uuid
+  jobId                  String           @map("job_id") @db.Uuid
+  bidId                  String?          @map("bid_id") @db.Uuid
+  amountCents            Int              @map("amount_cents")
+  currency               String           @default("USD")
+  direction              PaymentDirection
+  status                 PaymentStatus    @default(PENDING)
+  provider               PaymentProvider  @default(STRIPE)
+  providerPaymentIntentId String?         @map("provider_payment_intent_id")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+  job  Job  @relation(fields: [jobId], references: [id])
+  bid  Bid? @relation(fields: [bidId], references: [id])
+
+  @@index([jobId])
+  @@map("payments")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String
+  entity      String
+  entityId    String?  @map("entity_id") @db.Uuid
+  meta        Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@contractor-bidder/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.js",
+  "types": "src/index.ts",
+  "files": [
+    "src",
+    "tsconfig.base.json",
+    "eslint-preset.js"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./tsconfig": "./tsconfig.base.json",
+    "./eslint": "./eslint-preset.js"
+  }
+}

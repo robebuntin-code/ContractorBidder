@@ -1,0 +1,34 @@
+{
+  "name": "contractor-bidder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-platform marketplace connecting homeowners and contractors.",
+  "workspaces": [
+    "packages/*",
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "api": "npm run start:dev --workspace apps/api",
+    "web": "npm run dev:clean --workspace apps/web",
+    "mobile": "npm --prefix apps/mobile run start:go",
+    "mobile:device": "npm --prefix apps/mobile run eas:device:create",
+    "mobile:build:ios": "npm --prefix apps/mobile run eas:build:ios:dev",
+    "mobile:install:iphone": "npm --prefix apps/mobile run install:iphone",
+    "db:generate": "npm run prisma:generate --workspace apps/api",
+    "db:migrate": "npm run prisma:migrate --workspace apps/api",
+    "db:seed": "npm run prisma:seed --workspace apps/api",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  }
+}

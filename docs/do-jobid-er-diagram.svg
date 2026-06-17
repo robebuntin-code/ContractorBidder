@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 680" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 18px Segoe UI, Arial; fill: #0f172a; }
+      .subtitle { font: 12px Segoe UI, Arial; fill: #64748b; }
+      .entity { fill: #f8fafc; stroke: #2563eb; stroke-width: 1.5; rx: 8; }
+      .entity-title { font: 700 13px Segoe UI, Arial; fill: #1e40af; }
+      .field { font: 11px Segoe UI, Arial; fill: #334155; }
+      .pk { fill: #0f766e; font-weight: 700; }
+      .fk { fill: #b45309; }
+      .line { stroke: #64748b; stroke-width: 1.2; fill: none; marker-end: url(#arrow); }
+      .cardinality { font: 10px Segoe UI, Arial; fill: #64748b; }
+    </style>
+  </defs>
+  <text x="20" y="28" class="title">DOJOBID  Entity Relationship Diagram</text>
+  <text x="20" y="48" class="subtitle">PostgreSQL schema (Prisma) � 10 tables � 11 enums</text>
+
+  <!-- User -->
+  <rect x="30" y="80" width="180" height="130" class="entity"/>
+  <text x="45" y="102" class="entity-title">User (users)</text>
+  <text x="45" y="122" class="field pk">PK id (uuid)</text>
+  <text x="45" y="138" class="field">email (unique)</text>
+  <text x="45" y="154" class="field">role (enum)</text>
+  <text x="45" y="170" class="field">password_hash</text>
+  <text x="45" y="186" class="field">is_verified, is_banned</text>
+
+  <!-- ContractorProfile -->
+  <rect x="280" y="70" width="210" height="150" class="entity"/>
+  <text x="295" y="92" class="entity-title">ContractorProfile</text>
+  <text x="295" y="112" class="field pk">PK id</text>
+  <text x="295" y="128" class="field fk">FK user_id (unique)</text>
+  <text x="295" y="144" class="field">service_types[]</text>
+  <text x="295" y="160" class="field">service_radius_km</text>
+  <text x="295" y="176" class="field">base_lat, base_lng</text>
+  <text x="295" y="192" class="field">rating_agg, rating_count</text>
+
+  <!-- Job -->
+  <rect x="30" y="260" width="220" height="170" class="entity"/>
+  <text x="45" y="282" class="entity-title">Job (jobs)</text>
+  <text x="45" y="302" class="field pk">PK id</text>
+  <text x="45" y="318" class="field fk">FK created_by_user_id</text>
+  <text x="45" y="334" class="field">title, description, work_type</text>
+  <text x="45" y="350" class="field">address_text (private)</text>
+  <text x="45" y="366" class="field">precise_lat/lng (gated)</text>
+  <text x="45" y="382" class="field">coarse_lat/lng (discovery)</text>
+  <text x="45" y="398" class="field">status, budget_min/max</text>
+  <text x="45" y="414" class="field fk">FK accepted_bid_id</text>
+
+  <!-- Bid -->
+  <rect x="310" y="280" width="190" height="140" class="entity"/>
+  <text x="325" y="302" class="entity-title">Bid (bids)</text>
+  <text x="325" y="322" class="field pk">PK id</text>
+  <text x="325" y="338" class="field fk">FK job_id</text>
+  <text x="325" y="354" class="field fk">FK contractor_user_id</text>
+  <text x="325" y="370" class="field">amount (cents), message</text>
+  <text x="325" y="386" class="field">status (enum)</text>
+  <text x="325" y="402" class="field">UNIQUE(job_id, contractor)</text>
+
+  <!-- Message -->
+  <rect x="560" y="260" width="190" height="130" class="entity"/>
+  <text x="575" y="282" class="entity-title">Message</text>
+  <text x="575" y="302" class="field pk">PK id</text>
+  <text x="575" y="318" class="field fk">FK job_id</text>
+  <text x="575" y="334" class="field fk">FK from_user_id</text>
+  <text x="575" y="350" class="field fk">FK to_user_id</text>
+  <text x="575" y="366" class="field">body, attachments[]</text>
+
+  <!-- Notification -->
+  <rect x="560" y="80" width="190" height="120" class="entity"/>
+  <text x="575" y="102" class="entity-title">Notification</text>
+  <text x="575" y="122" class="field pk">PK id</text>
+  <text x="575" y="138" class="field fk">FK user_id</text>
+  <text x="575" y="154" class="field">type (enum), data (json)</text>
+  <text x="575" y="170" class="field">read_at</text>
+
+  <!-- Payment -->
+  <rect x="560" y="430" width="190" height="140" class="entity"/>
+  <text x="575" y="452" class="entity-title">Payment</text>
+  <text x="575" y="472" class="field pk">PK id</text>
+  <text x="575" y="488" class="field fk">FK user_id, job_id</text>
+  <text x="575" y="504" class="field fk">FK bid_id (optional)</text>
+  <text x="575" y="520" class="field">direction, status</text>
+  <text x="575" y="536" class="field">Stripe intent id</text>
+
+  <!-- Device -->
+  <rect x="30" y="480" width="180" height="110" class="entity"/>
+  <text x="45" y="502" class="entity-title">Device</text>
+  <text x="45" y="522" class="field pk">PK id</text>
+  <text x="45" y="538" class="field fk">FK user_id</text>
+  <text x="45" y="554" class="field">platform, token (unique)</text>
+
+  <!-- AuditLog -->
+  <rect x="280" y="480" width="190" height="110" class="entity"/>
+  <text x="295" y="502" class="entity-title">AuditLog</text>
+  <text x="295" y="522" class="field pk">PK id</text>
+  <text x="295" y="538" class="field fk">FK actor_user_id</text>
+  <text x="295" y="554" class="field">action, entity, meta</text>
+
+  <!-- Relationships -->
+  <path d="M210 130 L280 130" class="line"/>
+  <text x="225" y="122" class="cardinality">1 : 0..1</text>
+
+  <path d="M120 210 L120 260" class="line"/>
+  <text x="128" y="240" class="cardinality">1 : many</text>
+
+  <path d="M250 345 L310 345" class="line"/>
+  <text x="255" y="337" class="cardinality">1 : many</text>
+
+  <path d="M500 350 L560 330" class="line"/>
+  <text x="510" y="332" class="cardinality">1 : many</text>
+
+  <path d="M210 145 L560 145" class="line"/>
+  <text x="360" y="136" class="cardinality">1 : many</text>
+
+  <path d="M140 410 L140 480" class="line"/>
+  <text x="148" y="450" class="cardinality">1 : many</text>
+
+  <path d="M400 420 L560 490" class="line"/>
+  <text x="455" y="445" class="cardinality">many</text>
+
+  <path d="M120 210 L295 480" class="line"/>
+  <text x="170" y="360" class="cardinality">actor</text>
+
+  <rect x="30" y="620" width="860" height="48" fill="#eff6ff" stroke="#93c5fd" rx="6"/>
+  <text x="45" y="642" class="field">Privacy: Job.address_text + precise_lat/lng revealed only to owner and accepted contractor (after optional $1 acceptance fees).</text>
+  <text x="45" y="658" class="field">Discovery uses coarse_lat/lng (~1 km grid) and postal_code derived from address for non-owners.</text>
+</svg>
