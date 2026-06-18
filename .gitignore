@@ -41,6 +41,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# Vercel
+.vercel/
+
 # Terraform
 .terraform/
 *.tfstate

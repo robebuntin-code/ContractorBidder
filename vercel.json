@@ -1,5 +1,6 @@
 {
   "installCommand": "npm ci",
   "buildCommand": "npm run build --workspace @contractor-bidder/web",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "outputDirectory": "apps/web/.next"
 }

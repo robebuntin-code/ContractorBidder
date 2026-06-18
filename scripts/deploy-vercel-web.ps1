@@ -31,21 +31,20 @@ function Invoke-Vercel {
 Write-Host "Checking Vercel CLI login..."
 Invoke-Vercel whoami
 
-Write-Host "Linking Vercel project (apps/web monorepo root)..."
-if (-not (Test-Path (Join-Path $root 'apps\web\.vercel'))) {
-  Set-Location (Join-Path $root 'apps\web')
-  Invoke-Vercel link --yes
+Write-Host "Linking Vercel project (monorepo root)..."
+if (-not (Test-Path (Join-Path $root '.vercel'))) {
   Set-Location $root
+  Invoke-Vercel link --yes
 }
 
-Set-Location (Join-Path $root 'apps\web')
+Set-Location $root
 
 Write-Host "Setting NEXT_PUBLIC_API_URL=$ApiUrl"
 $prev = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 & npx --yes vercel@latest env rm NEXT_PUBLIC_API_URL production --yes 2>&1 | Out-Null
 $ErrorActionPreference = $prev
-Invoke-Vercel env add NEXT_PUBLIC_API_URL production --value $ApiUrl --yes
+$ApiUrl | Invoke-Vercel env add NEXT_PUBLIC_API_URL production
 
 Write-Host 'Deploying to production...'
 Invoke-Vercel deploy --prod --yes
