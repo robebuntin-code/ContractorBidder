@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api, tokenStore, type MeView } from '@/lib/api';
 
 const AUTH_CHANGE = 'dojobid-auth-change';
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<MeView | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,7 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setLoading(false);
     notifyAuthChange();
-  }, []);
+    router.replace('/login');
+  }, [router]);
 
   useEffect(() => {
     void refresh();

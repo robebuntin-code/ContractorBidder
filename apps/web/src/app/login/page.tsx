@@ -15,7 +15,6 @@ import type { Role } from '@contractor-bidder/types';
 import { api, tokenStore } from '@/lib/api';
 
 import BrandLogo from '@/components/BrandLogo';
-import { HowDojobidWorksLink } from '@/components/HowDojobidWorks';
 import { notifyAuthChange, useAuth } from '@/components/AuthProvider';
 
 
@@ -231,8 +230,6 @@ export default function LoginPage() {
           {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
 
         </button>
-
-        <HowDojobidWorksLink className="login-toggle" />
 
       </div>
 
