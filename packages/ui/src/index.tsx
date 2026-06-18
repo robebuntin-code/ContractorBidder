@@ -44,4 +44,10 @@ export function formatDistance(km?: number) {
   return `~${km.toFixed(1)} km away`;
 }
 
+export {
+  HOW_DOJOBID_WORKS,
+  type HowDojobidWorksSection,
+  type HowDojobidWorksStep,
+} from './howDojobidWorks';
+
 export const uiVersion = '0.1.0';

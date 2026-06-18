@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import BrandLogo from './BrandLogo';
+import { HowDojobidWorksLink } from './HowDojobidWorks';
 import { useAuth } from './AuthProvider';
 
 function navLinkClass(active: boolean): string {
@@ -46,20 +47,21 @@ export default function TopNav() {
           </nav>
         ) : (
           <nav className="top-nav-links" aria-label="Main">
-            <span className="top-nav-link muted-link">For homeowners</span>
-            <span className="top-nav-link muted-link">For contractors</span>
+            <HowDojobidWorksLink className="top-nav-link" />
           </nav>
         )}
 
         <div className="top-nav-actions">
           {user && !isLogin ? (
             <>
+              <HowDojobidWorksLink className="top-nav-text-btn" />
               <button type="button" className="top-nav-text-btn" onClick={() => void logout()}>
                 Log out
               </button>
             </>
           ) : (
             <>
+              <HowDojobidWorksLink className="top-nav-text-btn" />
               <Link href="/login" className="top-nav-text-btn">
                 Log in
               </Link>

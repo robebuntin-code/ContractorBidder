@@ -1746,3 +1746,129 @@ input[type='range'] {
     box-shadow: none;
   }
 }
+
+/* How DOJOBID works modal */
+.how-it-works-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.top-nav-link.how-it-works-link,
+.top-nav-text-btn.how-it-works-link {
+  text-decoration: none;
+}
+
+.how-it-works-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.how-it-works-dialog {
+  width: min(560px, 100%);
+  max-height: min(85vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.how-it-works-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.how-it-works-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.how-it-works-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.how-it-works-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.how-it-works-intro {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.how-it-works-section {
+  margin-bottom: 20px;
+}
+
+.how-it-works-section h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.how-it-works-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.how-it-works-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.how-it-works-steps li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.how-it-works-note p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.how-it-works-footer {
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.how-it-works-footer .btn-primary {
+  width: 100%;
+}
