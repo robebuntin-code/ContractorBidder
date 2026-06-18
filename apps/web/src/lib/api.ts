@@ -19,7 +19,8 @@ import type {
 } from '@contractor-bidder/types';
 import { resolveMediaUrl } from './mediaUrl';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:4000/api/v1';
 
 const ACCESS_KEY = 'cb_access';
 const REFRESH_KEY = 'cb_refresh';
