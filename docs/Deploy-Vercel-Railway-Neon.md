@@ -180,7 +180,7 @@ Railway runs the NestJS API from the **monorepo root** so workspace packages (`@
 
 1. Sign in at [https://railway.app](https://railway.app).
 2. **New Project** → **Deploy from GitHub repo**.
-3. Authorize GitHub and select your **ContractorBidder** repository.
+3. Authorize GitHub and select **`robebuntin-code/ContractorBidder`** ([github.com/robebuntin-code/ContractorBidder](https://github.com/robebuntin-code/ContractorBidder)).
 4. Railway creates a service from the repo.
 
 ![Figure 3 — Railway New Project: Deploy from GitHub repo, select ContractorBidder](./deploy-screenshots/path-a/railway-01-github-deploy.png)
@@ -311,7 +311,7 @@ https://api.yourdomain.com/api/v1/health
 ### Step 8. Import the repo on Vercel
 
 1. Sign in at [https://vercel.com](https://vercel.com).
-2. **Add New → Project** → import the same GitHub repository.
+2. **Add New → Project** → import **`robebuntin-code/ContractorBidder`**.
 3. Configure the project:
 
 | Setting | Value |

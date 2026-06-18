@@ -187,7 +187,7 @@ const SHOTS = [
           <div class="btn" style="margin-bottom:16px">Deploy from GitHub repo</div>
           <div class="card">
             <div class="label">Repository</div>
-            <div class="value">YOUR_GITHUB_USER / ContractorBidder</div>
+            <div class="value">robebuntin-code / ContractorBidder</div>
           </div>
           <div style="margin-top:12px"><span class="btn">Deploy Now</span></div>
         </div>
@@ -299,7 +299,7 @@ const SHOTS = [
         <div class="callout" style="border-color:#fff">
           <span class="badge">⑧ Import repo</span>
           <div class="card" style="background:#111">
-            <div class="value">GitHub · YOUR_GITHUB_USER/ContractorBidder</div>
+            <div class="value">GitHub · robebuntin-code/ContractorBidder</div>
           </div>
           <div style="margin-top:12px"><span class="btn" style="background:#fff;color:#000">Import</span></div>
         </div>

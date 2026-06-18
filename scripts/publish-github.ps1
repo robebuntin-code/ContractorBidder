@@ -2,11 +2,11 @@
 #
 # Usage:
 #   .\scripts\publish-github.ps1
-#   .\scripts\publish-github.ps1 -GitHubUser robbu
-#   .\scripts\publish-github.ps1 -GitHubUser robbu -RepoName ContractorBidder
+#   .\scripts\publish-github.ps1 -GitHubUser robebuntin-code
+#   .\scripts\publish-github.ps1 -GitHubUser robebuntin-code -RepoName ContractorBidder
 #
 param(
-  [string]$GitHubUser = 'robbu',
+  [string]$GitHubUser = 'robebuntin-code',
   [string]$RepoName = 'ContractorBidder'
 )
 

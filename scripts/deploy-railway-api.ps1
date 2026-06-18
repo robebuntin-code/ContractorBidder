@@ -13,6 +13,20 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Invoke-Railway {
+  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$RailwayArgs)
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $output = & npx --yes @railway/cli@latest @RailwayArgs 2>&1
+    $exit = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+  $output | ForEach-Object { Write-Host $_ }
+  if ($exit -ne 0) { throw "Railway command failed: railway $($RailwayArgs -join ' ')" }
+}
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
 
@@ -40,13 +54,7 @@ function New-RandomSecret {
 }
 
 Write-Host 'Checking Railway CLI login...'
-npx --yes @railway/cli@latest whoami 2>&1 | Out-Host
-if ($LASTEXITCODE -ne 0) {
-  Write-Host ''
-  Write-Host 'Not logged in. Run this first, then re-run this script:'
-  Write-Host '  npx @railway/cli login'
-  exit 1
-}
+Invoke-Railway whoami
 
 $localEnv = Read-DotEnv (Join-Path $root 'apps\api\.env')
 $dbUrl = To-PooledDatabaseUrl $localEnv['DATABASE_URL']
@@ -67,7 +75,7 @@ $jwtRefresh = if ($localEnv['JWT_REFRESH_SECRET'] -and $localEnv['JWT_REFRESH_SE
 
 Write-Host 'Linking Railway project (creates one if needed)...'
 if (-not (Test-Path (Join-Path $root '.railway'))) {
-  npx --yes @railway/cli@latest init --name dojobid-api 2>&1 | Out-Host
+  Invoke-Railway init --name dojobid-api
 }
 
 Write-Host 'Setting Railway variables...'
@@ -88,14 +96,14 @@ $vars = @{
 }
 
 foreach ($entry in $vars.GetEnumerator()) {
-  npx --yes @railway/cli@latest variables set "$($entry.Key)=$($entry.Value)" 2>&1 | Out-Host
+  Invoke-Railway variable set "$($entry.Key)=$($entry.Value)" --skip-deploys
 }
 
 Write-Host 'Deploying to Railway...'
-npx --yes @railway/cli@latest up --detach 2>&1 | Out-Host
+Invoke-Railway up --detach
 
 if ($GenerateDomain) {
-  npx --yes @railway/cli@latest domain 2>&1 | Out-Host
+  Invoke-Railway domain
 }
 
 Write-Host ''

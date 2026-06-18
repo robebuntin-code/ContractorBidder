@@ -167,7 +167,7 @@ You do **not** install PostgreSQL on the VPS when using Neon.
 ```powershell
 mkdir C:\apps
 cd C:\apps
-git clone https://github.com/YOUR_ORG/ContractorBidder.git
+git clone https://github.com/robebuntin-code/ContractorBidder.git
 cd ContractorBidder
 ```
 
