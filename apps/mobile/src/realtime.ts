@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { API_URL, getAccessTokenAsync } from './api';
+import { API_URL } from './config';
+import { getAccessTokenAsync } from './api';
 
 const ORIGIN = API_URL.replace(/\/api\/v1\/?$/, '');
 

@@ -1,9 +1,11 @@
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = ({ config }) => {
-  // Include expo-dev-client only for EAS dev builds or explicit dev-client sessions.
-  // Without this, iOS Camera scans try to open contractorbidder:// and fail in Expo Go.
+  const profile = process.env.EAS_BUILD_PROFILE ?? '';
+  // Dev client only for development builds — production/preview are standalone apps.
   const useDevClient =
-    process.env.EXPO_DEV_CLIENT === '1' || process.env.EAS_BUILD === 'true';
+    process.env.EXPO_DEV_CLIENT === '1' ||
+    profile === 'development' ||
+    profile === 'development-simulator';
 
   return {
     ...config,
@@ -67,6 +69,9 @@ module.exports = ({ config }) => {
       ],
     ],
     extra: {
+      apiUrl:
+        process.env.EXPO_PUBLIC_API_URL ??
+        'https://dojobid-api-production.up.railway.app/api/v1',
       eas: {
         projectId: 'b207fc9c-5de2-4d6e-a471-44379207cbac',
       },

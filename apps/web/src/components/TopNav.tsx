@@ -47,6 +47,9 @@ export default function TopNav() {
           </nav>
         ) : (
           <nav className="top-nav-links" aria-label="Main">
+            <Link href="/download" className={navLinkClass(pathname === '/download')}>
+              Get the app
+            </Link>
             <HowDojobidWorksLink className="top-nav-link" />
           </nav>
         )}

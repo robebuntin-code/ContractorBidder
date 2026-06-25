@@ -13,6 +13,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { LocationPrecision, Role } from '../../generated/prisma/client';
 
@@ -27,6 +28,18 @@ export const WORK_TYPES = [
 ] as const;
 
 export type WorkType = (typeof WORK_TYPES)[number];
+
+export class JobPhotoComparisonDto {
+  @IsString()
+  @MinLength(10)
+  @MaxLength(512)
+  before!: string;
+
+  @IsString()
+  @MinLength(10)
+  @MaxLength(512)
+  after!: string;
+}
 
 export class CreateJobDto {
   @IsString()
@@ -53,6 +66,13 @@ export class CreateJobDto {
   @IsArray()
   @IsString({ each: true })
   photos?: string[];
+
+  /** Before/after pairs showing planned scope (e.g. AI visualization). */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => JobPhotoComparisonDto)
+  photoComparisons?: JobPhotoComparisonDto[];
 
   @IsString()
   @MinLength(3)

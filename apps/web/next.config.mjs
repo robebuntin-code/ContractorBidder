@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
-const apiOrigin =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '') ?? 'http://localhost:4000';
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const apiOrigin = rawApiUrl
+  ? rawApiUrl.replace(/\/api\/v1\/?$/, '')
+  : 'http://localhost:4000';
 
 const nextConfig = {
   reactStrictMode: true,

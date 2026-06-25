@@ -2,10 +2,15 @@
  * Mobile API client. On a device/emulator, localhost will not reach your dev
  * machine: set EXPO_PUBLIC_API_URL to your LAN IP, e.g.
  *   EXPO_PUBLIC_API_URL="http://192.168.1.20:4000/api/v1"
+ * Production:
+ *   EXPO_PUBLIC_API_URL="https://dojobid-api-production.up.railway.app/api/v1"
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import { API_URL } from './config';
+import { extractMediaKey } from './utils/mediaUrl';
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+export { API_URL };
 
 const ACCESS_KEY = 'cb_access';
 const REFRESH_KEY = 'cb_refresh';
@@ -48,12 +53,18 @@ export interface AuthResponse {
   user: PublicUser;
 }
 
+export interface JobPhotoComparison {
+  before: string;
+  after: string;
+}
+
 export interface JobCoarse {
   id: string;
   title: string;
   description: string;
   workType: string;
   photos: string[];
+  photoComparisons: JobPhotoComparison[];
   desiredDatetimeStart: string;
   desiredDatetimeEnd?: string | null;
   budgetMin?: number | null;
@@ -223,10 +234,13 @@ async function tryRefreshAccessToken(): Promise<string | null> {
 }
 
 async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {};
   const token = await resolveAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   Object.assign(headers, (options.headers as Record<string, string>) ?? {});
+  if (options.body != null && !headers['Content-Type'] && !headers['content-type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
@@ -261,6 +275,9 @@ async function request<T>(path: string, options: RequestInit = {}, retried = fal
       message = Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? message);
     } catch {
       /* ignore */
+    }
+    if (message === 'An unexpected error occurred.') {
+      message = `Server error (${res.status}). Check that the API is running and reachable at ${API_URL}.`;
     }
     throw new Error(message);
   }
@@ -319,6 +336,7 @@ export const api = {
     lat: number;
     lng: number;
     photos?: string[];
+    photoComparisons?: JobPhotoComparison[];
     budgetMin?: number;
     budgetMax?: number;
   }) => request<JobFull>('/jobs', { method: 'POST', body: JSON.stringify(input) }),
@@ -335,9 +353,10 @@ export const api = {
       contactPhone?: string;
       lat: number;
       lng: number;
-      photos?: string[];
-      budgetMin?: number;
-      budgetMax?: number;
+    photos?: string[];
+    photoComparisons?: JobPhotoComparison[];
+    budgetMin?: number;
+    budgetMax?: number;
     },
   ) => request<JobFull>(`/jobs/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
@@ -425,6 +444,7 @@ export const api = {
       messagingGroupVisible: boolean;
       jobsMaxPhotos: number;
       aiJobDescriptionEnabled: boolean;
+      aiPhotoEditEnabled: boolean;
     }>('/flags'),
 
   suggestJobDescription: (input: {
@@ -436,22 +456,37 @@ export const api = {
       '/jobs/description-suggestions',
       { method: 'POST', body: JSON.stringify(input) },
     ),
+
+  editJobPhoto: (sourceKey: string, prompt: string) =>
+    request<{ key: string }>('/jobs/photo-edit', {
+      method: 'POST',
+      body: JSON.stringify({ sourceKey, prompt }),
+    }),
 };
 
 /**
  * Upload a local file to a pre-signed URL (S3 or local dev-media store).
+ * Uses expo-file-system so iOS photo library URIs upload completely (fetch().blob() often sends empty bodies).
  */
 export async function uploadToSignedUrl(
   signed: SignedUpload,
   uri: string,
   contentType: string,
 ): Promise<string> {
-  const blob = await (await fetch(uri)).blob();
-  const res = await fetch(signed.uploadUrl, {
-    method: 'PUT',
+  const info = await FileSystem.getInfoAsync(uri);
+  if (!info.exists || (info.size ?? 0) < 512) {
+    throw new Error('Could not read the selected photo. Try choosing it again.');
+  }
+
+  const response = await FileSystem.uploadAsync(signed.uploadUrl, uri, {
+    httpMethod: 'PUT',
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
     headers: { 'Content-Type': contentType },
-    body: blob,
   });
-  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-  return signed.fileUrl;
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`Upload failed (${response.status}). Try a smaller image.`);
+  }
+
+  return signed.key || extractMediaKey(signed.fileUrl) || signed.fileUrl;
 }

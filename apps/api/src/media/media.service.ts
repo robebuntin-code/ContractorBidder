@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { Request } from 'express';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { SignUploadDto } from './dto/sign-upload.dto';
 
@@ -56,11 +56,7 @@ export class MediaService {
       );
       const fileUrl = this.publicBaseUrl
         ? `${this.publicBaseUrl.replace(/\/$/, '')}/${key}`
-        : await getSignedUrl(
-            this.s3,
-            new GetObjectCommand({ Bucket: this.bucket, Key: key }),
-            { expiresIn: 3600 },
-          );
+        : key;
       return { uploadUrl, fileUrl, key, expiresInSeconds: UPLOAD_TTL_SECONDS };
     }
 
@@ -93,28 +89,44 @@ export class MediaService {
     return `${proto}://${host}/api/v1/dev-media`;
   }
 
+  /** Stable value to persist after upload (key or public URL — never a short-lived signed URL). */
+  normalizeStoredUrl(storedUrl: string): string {
+    if (!storedUrl?.trim()) return storedUrl;
+    const key = this.extractMediaKey(storedUrl);
+    return key ?? storedUrl.trim();
+  }
+
   /** Rewrite a stored media URL so phones/other clients can fetch it (fixes localhost URLs). */
   resolvePublicUrl(storedUrl: string, req?: Request): string {
     if (!storedUrl?.trim()) return storedUrl;
     const key = this.extractMediaKey(storedUrl);
     if (!key) return storedUrl;
 
-    if (this.s3 && this.bucket && this.publicBaseUrl) {
-      return `${this.publicBaseUrl.replace(/\/$/, '')}/${key}`;
+    if (this.s3 && this.bucket) {
+      if (this.publicBaseUrl) {
+        return `${this.publicBaseUrl.replace(/\/$/, '')}/${key}`;
+      }
+      // S3 without a public CDN — serve via dev-media-style path resolved on read.
+      return `${this.getDevMediaBase(req)}/${key}`;
     }
 
     return `${this.getDevMediaBase(req)}/${key}`;
   }
 
   private extractMediaKey(storedUrl: string): string | null {
+    if (storedUrl.startsWith('uploads/')) return storedUrl;
+
     try {
       const parsed = new URL(storedUrl);
-      const match = parsed.pathname.match(/\/dev-media\/(.+)$/);
-      if (match?.[1]) return decodeURIComponent(match[1]);
+      const devMediaMatch = parsed.pathname.match(/\/dev-media\/(.+)$/);
+      if (devMediaMatch?.[1]) return decodeURIComponent(devMediaMatch[1]);
+
+      const uploadsMatch = parsed.pathname.match(/\/(uploads\/[^/].*)$/);
+      if (uploadsMatch?.[1]) return decodeURIComponent(uploadsMatch[1]);
     } catch {
       /* not a full URL */
     }
-    if (storedUrl.startsWith('uploads/')) return storedUrl;
+
     return null;
   }
 }

@@ -21,6 +21,7 @@
     "mobile": "npm --prefix apps/mobile run start:go",
     "mobile:device": "npm --prefix apps/mobile run eas:device:create",
     "mobile:build:ios": "npm --prefix apps/mobile run eas:build:ios:dev",
+    "mobile:build:ios:production": "npm --prefix apps/mobile run eas:build:ios:production",
     "mobile:install:iphone": "npm --prefix apps/mobile run install:iphone",
     "db:generate": "npm run prisma:generate --workspace apps/api",
     "db:migrate": "npm run prisma:migrate --workspace apps/api",

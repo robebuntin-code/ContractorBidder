@@ -14,11 +14,14 @@
     "eas:login": "eas login",
     "eas:init": "eas init",
     "eas:build:ios:dev": "eas build --profile development --platform ios",
+    "eas:build:ios:production": "eas build --profile production --platform ios",
+    "eas:submit:ios": "eas submit --platform ios --profile production",
     "eas:device:create": "eas device:create",
     "install:iphone": "powershell -ExecutionPolicy Bypass -File ./scripts/install-on-iphone.ps1",
     "eas:build:android:dev": "eas build --profile development --platform android"
   },
   "dependencies": {
+    "@contractor-bidder/ui": "file:../../packages/ui",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
@@ -29,6 +32,8 @@
     "expo": "^54.0.35",
     "expo-dev-client": "~6.0.21",
     "expo-device": "~8.0.10",
+    "expo-file-system": "~19.0.23",
+    "expo-image": "~3.0.11",
     "expo-image-picker": "~17.0.11",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.17",

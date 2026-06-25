@@ -6,7 +6,9 @@ export interface FeatureFlags {
   messagingGroupVisible: boolean;
   profileRequireVerification: boolean;
   jobsMaxPhotos: number;
+  jobsMaxPhotoComparisons: number;
   aiJobDescriptionEnabled: boolean;
+  aiPhotoEditEnabled: boolean;
 }
 
 /**
@@ -23,7 +25,9 @@ export class FeatureFlagsService {
       messagingGroupVisible: this.bool('MESSAGING_GROUP_VISIBLE', false),
       profileRequireVerification: this.bool('PROFILE_REQUIRE_VERIFICATION', false),
       jobsMaxPhotos: Number(this.config.get('JOBS_MAX_PHOTOS') ?? 4),
+      jobsMaxPhotoComparisons: Number(this.config.get('JOBS_MAX_PHOTO_COMPARISONS') ?? 2),
       aiJobDescriptionEnabled: this.bool('AI_JOB_DESCRIPTION_ENABLED', true),
+      aiPhotoEditEnabled: this.bool('AI_PHOTO_EDIT_ENABLED', true),
     };
   }
 

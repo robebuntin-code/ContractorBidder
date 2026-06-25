@@ -20,7 +20,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
 
   const isLogin = pathname === '/login';
-  const showTabs = !!user && !isLogin;
+  const isDownload = pathname === '/download';
+  const isBareScreen = isLogin || isDownload;
+  const showTabs = !!user && !isBareScreen;
   const stackTitle = getStackTitle(pathname);
   const showStackHeader = showTabs && stackTitle !== null;
 
@@ -34,7 +36,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             'app-content',
             showTabs ? 'has-tabs' : '',
             showStackHeader ? 'has-stack-header' : '',
-            isLogin ? 'bare-screen' : '',
+            isBareScreen ? 'bare-screen' : '',
           ]
             .filter(Boolean)
             .join(' ')}

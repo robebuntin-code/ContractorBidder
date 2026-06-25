@@ -104,6 +104,7 @@ export type JobCountAggregateOutputType = {
   desiredDatetimeStart: number
   desiredDatetimeEnd: number
   photos: number
+  photoComparisons: number
   addressText: number
   contactPhone: number
   locationPrecision: number
@@ -200,6 +201,7 @@ export type JobCountAggregateInputType = {
   desiredDatetimeStart?: true
   desiredDatetimeEnd?: true
   photos?: true
+  photoComparisons?: true
   addressText?: true
   contactPhone?: true
   locationPrecision?: true
@@ -313,6 +315,7 @@ export type JobGroupByOutputType = {
   desiredDatetimeStart: Date
   desiredDatetimeEnd: Date | null
   photos: string[]
+  photoComparisons: runtime.JsonValue
   addressText: string
   contactPhone: string | null
   locationPrecision: $Enums.LocationPrecision
@@ -362,6 +365,7 @@ export type JobWhereInput = {
   desiredDatetimeStart?: Prisma.DateTimeFilter<"Job"> | Date | string
   desiredDatetimeEnd?: Prisma.DateTimeNullableFilter<"Job"> | Date | string | null
   photos?: Prisma.StringNullableListFilter<"Job">
+  photoComparisons?: Prisma.JsonFilter<"Job">
   addressText?: Prisma.StringFilter<"Job"> | string
   contactPhone?: Prisma.StringNullableFilter<"Job"> | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFilter<"Job"> | $Enums.LocationPrecision
@@ -394,6 +398,7 @@ export type JobOrderByWithRelationInput = {
   desiredDatetimeStart?: Prisma.SortOrder
   desiredDatetimeEnd?: Prisma.SortOrderInput | Prisma.SortOrder
   photos?: Prisma.SortOrder
+  photoComparisons?: Prisma.SortOrder
   addressText?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   locationPrecision?: Prisma.SortOrder
@@ -430,6 +435,7 @@ export type JobWhereUniqueInput = Prisma.AtLeast<{
   desiredDatetimeStart?: Prisma.DateTimeFilter<"Job"> | Date | string
   desiredDatetimeEnd?: Prisma.DateTimeNullableFilter<"Job"> | Date | string | null
   photos?: Prisma.StringNullableListFilter<"Job">
+  photoComparisons?: Prisma.JsonFilter<"Job">
   addressText?: Prisma.StringFilter<"Job"> | string
   contactPhone?: Prisma.StringNullableFilter<"Job"> | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFilter<"Job"> | $Enums.LocationPrecision
@@ -461,6 +467,7 @@ export type JobOrderByWithAggregationInput = {
   desiredDatetimeStart?: Prisma.SortOrder
   desiredDatetimeEnd?: Prisma.SortOrderInput | Prisma.SortOrder
   photos?: Prisma.SortOrder
+  photoComparisons?: Prisma.SortOrder
   addressText?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrderInput | Prisma.SortOrder
   locationPrecision?: Prisma.SortOrder
@@ -495,6 +502,7 @@ export type JobScalarWhereWithAggregatesInput = {
   desiredDatetimeStart?: Prisma.DateTimeWithAggregatesFilter<"Job"> | Date | string
   desiredDatetimeEnd?: Prisma.DateTimeNullableWithAggregatesFilter<"Job"> | Date | string | null
   photos?: Prisma.StringNullableListFilter<"Job">
+  photoComparisons?: Prisma.JsonWithAggregatesFilter<"Job">
   addressText?: Prisma.StringWithAggregatesFilter<"Job"> | string
   contactPhone?: Prisma.StringNullableWithAggregatesFilter<"Job"> | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionWithAggregatesFilter<"Job"> | $Enums.LocationPrecision
@@ -520,6 +528,7 @@ export type JobCreateInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -551,6 +560,7 @@ export type JobUncheckedCreateInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -580,6 +590,7 @@ export type JobUpdateInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -611,6 +622,7 @@ export type JobUncheckedUpdateInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -641,6 +653,7 @@ export type JobCreateManyInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -666,6 +679,7 @@ export type JobUpdateManyMutationInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -691,6 +705,7 @@ export type JobUncheckedUpdateManyInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -727,6 +742,7 @@ export type JobCountOrderByAggregateInput = {
   desiredDatetimeStart?: Prisma.SortOrder
   desiredDatetimeEnd?: Prisma.SortOrder
   photos?: Prisma.SortOrder
+  photoComparisons?: Prisma.SortOrder
   addressText?: Prisma.SortOrder
   contactPhone?: Prisma.SortOrder
   locationPrecision?: Prisma.SortOrder
@@ -985,6 +1001,7 @@ export type JobCreateWithoutCreatedByInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1014,6 +1031,7 @@ export type JobUncheckedCreateWithoutCreatedByInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1073,6 +1091,7 @@ export type JobScalarWhereInput = {
   desiredDatetimeStart?: Prisma.DateTimeFilter<"Job"> | Date | string
   desiredDatetimeEnd?: Prisma.DateTimeNullableFilter<"Job"> | Date | string | null
   photos?: Prisma.StringNullableListFilter<"Job">
+  photoComparisons?: Prisma.JsonFilter<"Job">
   addressText?: Prisma.StringFilter<"Job"> | string
   contactPhone?: Prisma.StringNullableFilter<"Job"> | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFilter<"Job"> | $Enums.LocationPrecision
@@ -1098,6 +1117,7 @@ export type JobCreateWithoutBidsInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1128,6 +1148,7 @@ export type JobUncheckedCreateWithoutBidsInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1161,6 +1182,7 @@ export type JobCreateWithoutAcceptedBidInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1191,6 +1213,7 @@ export type JobUncheckedCreateWithoutAcceptedBidInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1235,6 +1258,7 @@ export type JobUpdateWithoutBidsInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1265,6 +1289,7 @@ export type JobUncheckedUpdateWithoutBidsInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1304,6 +1329,7 @@ export type JobUpdateWithoutAcceptedBidInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1334,6 +1360,7 @@ export type JobUncheckedUpdateWithoutAcceptedBidInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1362,6 +1389,7 @@ export type JobCreateWithoutMessagesInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1392,6 +1420,7 @@ export type JobUncheckedCreateWithoutMessagesInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1436,6 +1465,7 @@ export type JobUpdateWithoutMessagesInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1466,6 +1496,7 @@ export type JobUncheckedUpdateWithoutMessagesInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1494,6 +1525,7 @@ export type JobCreateWithoutReviewInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1524,6 +1556,7 @@ export type JobUncheckedCreateWithoutReviewInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1568,6 +1601,7 @@ export type JobUpdateWithoutReviewInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1598,6 +1632,7 @@ export type JobUncheckedUpdateWithoutReviewInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1626,6 +1661,7 @@ export type JobCreateWithoutPaymentsInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1656,6 +1692,7 @@ export type JobUncheckedCreateWithoutPaymentsInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1700,6 +1737,7 @@ export type JobUpdateWithoutPaymentsInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1730,6 +1768,7 @@ export type JobUncheckedUpdateWithoutPaymentsInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1758,6 +1797,7 @@ export type JobCreateManyCreatedByInput = {
   desiredDatetimeStart: Date | string
   desiredDatetimeEnd?: Date | string | null
   photos?: Prisma.JobCreatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText: string
   contactPhone?: string | null
   locationPrecision?: $Enums.LocationPrecision
@@ -1783,6 +1823,7 @@ export type JobUpdateWithoutCreatedByInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1812,6 +1853,7 @@ export type JobUncheckedUpdateWithoutCreatedByInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1841,6 +1883,7 @@ export type JobUncheckedUpdateManyWithoutCreatedByInput = {
   desiredDatetimeStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   desiredDatetimeEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   photos?: Prisma.JobUpdatephotosInput | string[]
+  photoComparisons?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   addressText?: Prisma.StringFieldUpdateOperationsInput | string
   contactPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   locationPrecision?: Prisma.EnumLocationPrecisionFieldUpdateOperationsInput | $Enums.LocationPrecision
@@ -1916,6 +1959,7 @@ export type JobSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = ru
   desiredDatetimeStart?: boolean
   desiredDatetimeEnd?: boolean
   photos?: boolean
+  photoComparisons?: boolean
   addressText?: boolean
   contactPhone?: boolean
   locationPrecision?: boolean
@@ -1949,6 +1993,7 @@ export type JobSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extension
   desiredDatetimeStart?: boolean
   desiredDatetimeEnd?: boolean
   photos?: boolean
+  photoComparisons?: boolean
   addressText?: boolean
   contactPhone?: boolean
   locationPrecision?: boolean
@@ -1977,6 +2022,7 @@ export type JobSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extension
   desiredDatetimeStart?: boolean
   desiredDatetimeEnd?: boolean
   photos?: boolean
+  photoComparisons?: boolean
   addressText?: boolean
   contactPhone?: boolean
   locationPrecision?: boolean
@@ -2005,6 +2051,7 @@ export type JobSelectScalar = {
   desiredDatetimeStart?: boolean
   desiredDatetimeEnd?: boolean
   photos?: boolean
+  photoComparisons?: boolean
   addressText?: boolean
   contactPhone?: boolean
   locationPrecision?: boolean
@@ -2021,7 +2068,7 @@ export type JobSelectScalar = {
   updatedAt?: boolean
 }
 
-export type JobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdByUserId" | "createdByRole" | "title" | "description" | "workType" | "desiredDatetimeStart" | "desiredDatetimeEnd" | "photos" | "addressText" | "contactPhone" | "locationPrecision" | "preciseLat" | "preciseLng" | "coarseLat" | "coarseLng" | "budgetMin" | "budgetMax" | "currency" | "status" | "acceptedBidId" | "createdAt" | "updatedAt", ExtArgs["result"]["job"]>
+export type JobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdByUserId" | "createdByRole" | "title" | "description" | "workType" | "desiredDatetimeStart" | "desiredDatetimeEnd" | "photos" | "photoComparisons" | "addressText" | "contactPhone" | "locationPrecision" | "preciseLat" | "preciseLng" | "coarseLat" | "coarseLng" | "budgetMin" | "budgetMax" | "currency" | "status" | "acceptedBidId" | "createdAt" | "updatedAt", ExtArgs["result"]["job"]>
 export type JobInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   createdBy?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   bids?: boolean | Prisma.Job$bidsArgs<ExtArgs>
@@ -2060,6 +2107,10 @@ export type $JobPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
     desiredDatetimeStart: Date
     desiredDatetimeEnd: Date | null
     photos: string[]
+    /**
+     * * [{ before: uploads/…, after: uploads/… }] — AI or manual scope visualization
+     */
+    photoComparisons: runtime.JsonValue
     addressText: string
     contactPhone: string | null
     locationPrecision: $Enums.LocationPrecision
@@ -2512,6 +2563,7 @@ export interface JobFieldRefs {
   readonly desiredDatetimeStart: Prisma.FieldRef<"Job", 'DateTime'>
   readonly desiredDatetimeEnd: Prisma.FieldRef<"Job", 'DateTime'>
   readonly photos: Prisma.FieldRef<"Job", 'String[]'>
+  readonly photoComparisons: Prisma.FieldRef<"Job", 'Json'>
   readonly addressText: Prisma.FieldRef<"Job", 'String'>
   readonly contactPhone: Prisma.FieldRef<"Job", 'String'>
   readonly locationPrecision: Prisma.FieldRef<"Job", 'LocationPrecision'>

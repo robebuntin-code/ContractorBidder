@@ -18,7 +18,9 @@ import { useRealtime } from '../realtime';
 import { colors, formatBudget, formatWorkType, styles } from '../theme';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SharedStackParamList } from '../navTypes';
-import { resolveMediaUrl } from '../utils/mediaUrl';
+import { resolveMediaUrl, resolvePhotoComparisons, resolvePhotoUrls } from '../utils/mediaUrl';
+import RemotePhoto from '../components/RemotePhoto';
+import { JobScopeComparisons } from '../components/JobScopeComparisons';
 import { formatJobTimeframe, jobTimeframeHeading } from '../utils/jobDates';
 
 const MAX_MESSAGE_PHOTOS = 4;
@@ -60,7 +62,11 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
     setError(null);
     try {
       const j = await api.getJob(jobId);
-      setJob(j);
+      setJob({
+        ...j,
+        photos: resolvePhotoUrls(j.photos),
+        photoComparisons: resolvePhotoComparisons(j.photoComparisons),
+      });
       try {
         setBids(await api.listBids(jobId));
       } catch {
@@ -296,10 +302,11 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
         {m.attachments.length > 0 && (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: m.body ? 6 : 0 }}>
             {m.attachments.map((uri) => (
-              <Image
+              <RemotePhoto
                 key={uri}
-                source={{ uri: resolveMediaUrl(uri) }}
+                uri={resolveMediaUrl(uri)}
                 style={{ width: 120, height: 90, borderRadius: 8 }}
+                containerStyle={{ width: 120, height: 90, borderRadius: 8, overflow: 'hidden' }}
               />
             ))}
           </View>
@@ -318,7 +325,12 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
     return (
       <>
         {pendingPhotos.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
+            style={{ marginBottom: 8, height: 72 }}
+          >
             {pendingPhotos.map((photo) => (
               <View key={photo.id} style={{ marginRight: 8, position: 'relative' }}>
                 <Image
@@ -462,16 +474,24 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
           </View>
         )}
 
+        {(job.photoComparisons?.length ?? 0) > 0 && (
+          <JobScopeComparisons comparisons={job.photoComparisons} />
+        )}
+
         {job.photos.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-            {job.photos.map((uri) => (
-              <Image
-                key={uri}
-                source={{ uri: resolveMediaUrl(uri) }}
-                style={{ width: 220, height: 150, borderRadius: 12, marginRight: 8 }}
-              />
-            ))}
-          </ScrollView>
+          <View style={{ marginTop: 12 }}>
+            <Text style={[styles.muted, { marginBottom: 8 }]}>Photos</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {job.photos.map((uri) => (
+                <RemotePhoto
+                  key={uri}
+                  uri={uri}
+                  style={{ width: 220, height: 150, borderRadius: 12 }}
+                  containerStyle={{ width: 220, height: 150, borderRadius: 12, overflow: 'hidden' }}
+                />
+              ))}
+            </View>
+          </View>
         )}
 
         <View style={[styles.card, { marginTop: 12 }]}>

@@ -1264,6 +1264,7 @@ export const JobScalarFieldEnum = {
   desiredDatetimeStart: 'desiredDatetimeStart',
   desiredDatetimeEnd: 'desiredDatetimeEnd',
   photos: 'photos',
+  photoComparisons: 'photoComparisons',
   addressText: 'addressText',
   contactPhone: 'contactPhone',
   locationPrecision: 'locationPrecision',
@@ -1529,6 +1530,20 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
  * Reference to a field of type 'LocationPrecision'
  */
 export type EnumLocationPrecisionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'LocationPrecision'>
@@ -1595,20 +1610,6 @@ export type EnumNotificationTypeFieldRefInput<$PrismaModel> = FieldRefInputType<
  * Reference to a field of type 'NotificationType[]'
  */
 export type ListEnumNotificationTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'NotificationType[]'>
-    
-
-
-/**
- * Reference to a field of type 'Json'
- */
-export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-    
-
-
-/**
- * Reference to a field of type 'QueryMode'
- */
-export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
     
 
 

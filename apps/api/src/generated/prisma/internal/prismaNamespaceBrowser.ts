@@ -143,6 +143,7 @@ export const JobScalarFieldEnum = {
   desiredDatetimeStart: 'desiredDatetimeStart',
   desiredDatetimeEnd: 'desiredDatetimeEnd',
   photos: 'photos',
+  photoComparisons: 'photoComparisons',
   addressText: 'addressText',
   contactPhone: 'contactPhone',
   locationPrecision: 'locationPrecision',

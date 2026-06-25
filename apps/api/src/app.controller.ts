@@ -18,6 +18,7 @@ export class AppController {
       messagingGroupVisible: f.messagingGroupVisible,
       jobsMaxPhotos: f.jobsMaxPhotos,
       aiJobDescriptionEnabled: f.aiJobDescriptionEnabled,
+      aiPhotoEditEnabled: f.aiPhotoEditEnabled,
     };
   }
 }

@@ -15,11 +15,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, type JobCoarse } from '../api';
 import JobsMap from '../components/JobsMap';
+import { HowDojobidWorksLink } from '../components/HowDojobidWorks';
 import SearchRadiusMap from '../components/SearchRadiusMap';
 import { colors, formatBudget, formatDistanceMiles, formatWorkType, SERVICE_TYPE_OPTIONS, styles } from '../theme';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FindStackParamList } from '../navTypes';
 import { formatGeocodedAddress } from '../utils/addressFormat';
+import { resolveMediaUrl } from '../utils/mediaUrl';
+import RemotePhoto from '../components/RemotePhoto';
 
 /** Seeded demo jobs are centered on Lower Manhattan. */
 const FALLBACK = { lat: 40.7128, lng: -74.006, label: 'New York, NY (demo area)' };
@@ -53,9 +56,13 @@ function centerIcon(source: SearchCenter['source'] | undefined): string {
 
 function JobCard({ job, onPress }: { job: JobCoarse; onPress: () => void }) {
   const distance = formatDistanceMiles(job.distanceKm);
+  const photoUri = job.photos?.[0] ? resolveMediaUrl(job.photos[0]) : null;
 
   return (
     <TouchableOpacity style={local.card} onPress={onPress} activeOpacity={0.7}>
+      {photoUri ? (
+        <RemotePhoto uri={photoUri} style={local.cardPhoto} containerStyle={local.cardPhotoWrap} />
+      ) : null}
       <View style={local.cardTop}>
         <View style={local.typePill}>
           <Text style={local.typePillText}>{formatWorkType(job.workType)}</Text>
@@ -287,6 +294,9 @@ export default function FindJobsScreen({ navigation }: NativeStackScreenProps<Fi
           <View>
             <Text style={styles.title}>Find Jobs</Text>
             <Text style={local.subtitle}>Browse open jobs near you and place a bid.</Text>
+            <View style={{ marginBottom: 12 }}>
+              <HowDojobidWorksLink />
+            </View>
 
             <View style={local.section}>
               <Text style={local.sectionLabel}>Search area</Text>
@@ -628,6 +638,19 @@ const local = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  cardPhotoWrap: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  cardPhoto: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    backgroundColor: colors.border,
   },
   cardTop: {
     flexDirection: 'row',

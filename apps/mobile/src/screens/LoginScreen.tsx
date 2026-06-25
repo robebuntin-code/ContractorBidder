@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth';
+import { HowDojobidWorksLink } from '../components/HowDojobidWorks';
 import { colors, styles } from '../theme';
 
 export default function LoginScreen() {
@@ -125,6 +126,10 @@ export default function LoginScreen() {
             {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign in'}
           </Text>
         </TouchableOpacity>
+
+        <View style={{ marginTop: 16 }}>
+          <HowDojobidWorksLink />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

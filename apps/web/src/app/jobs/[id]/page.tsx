@@ -13,6 +13,7 @@ import {
 } from '@/components/MessageComposer';
 import { api, uploadToSignedUrl, type BidWithContractor, type MessageView } from '@/lib/api';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
+import { JobScopeComparisons } from '@/components/JobScopeComparisons';
 import { inferImageContentType, imageExtensionForContentType } from '@/lib/uploadUtils';
 import { formatJobTimeframe, jobTimeframeHeading } from '@/lib/jobDates';
 import { useRealtime } from '@/lib/realtime';
@@ -365,6 +366,10 @@ export default function JobDetailPage() {
             </>
           )}
         </div>
+      )}
+
+      {(job.photoComparisons?.length ?? 0) > 0 && (
+        <JobScopeComparisons comparisons={job.photoComparisons} />
       )}
 
       {job.photos.length > 0 && (

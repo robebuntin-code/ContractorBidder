@@ -119,6 +119,12 @@ export interface JobDescriptionSuggestionsResponse {
   suggestions: JobDescriptionSuggestion[];
 }
 
+/** Before/after pair showing planned scope of work for contractors. */
+export interface JobPhotoComparison {
+  before: string;
+  after: string;
+}
+
 export interface JobCreateDto {
   title: string;
   description: string;
@@ -126,6 +132,7 @@ export interface JobCreateDto {
   desiredDatetimeStart: string; // ISO
   desiredDatetimeEnd?: string; // ISO
   photos?: string[]; // pre-signed URLs after upload, max 4
+  photoComparisons?: JobPhotoComparison[];
   addressText: string;
   contactPhone?: string;
   lat: number;
@@ -162,6 +169,8 @@ export interface JobCoarseView {
   desiredDatetimeStart: string;
   desiredDatetimeEnd?: string | null;
   photos: string[];
+  /** Before/after scope visualization pairs for contractors. */
+  photoComparisons: JobPhotoComparison[];
   budgetMin?: number | null;
   budgetMax?: number | null;
   currency: string;

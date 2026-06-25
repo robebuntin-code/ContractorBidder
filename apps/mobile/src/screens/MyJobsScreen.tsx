@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { api, SessionExpiredError, type JobFull } from '../api';
 import { FeedListCard } from '../components/FeedListCard';
+import { HowDojobidWorksLink } from '../components/HowDojobidWorks';
 import { colors, formatBudget, styles } from '../theme';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MyJobsStackParamList } from '../navTypes';
@@ -78,6 +79,9 @@ export default function MyJobsScreen({ navigation }: NativeStackScreenProps<MyJo
         ListHeaderComponent={
           <View>
             <Text style={styles.title}>My Jobs</Text>
+            <View style={{ marginBottom: 12 }}>
+              <HowDojobidWorksLink style={{ alignSelf: 'flex-start' }} />
+            </View>
             <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('PostJob')}>
               <Text style={styles.buttonText}>+ Post a Job</Text>
             </TouchableOpacity>

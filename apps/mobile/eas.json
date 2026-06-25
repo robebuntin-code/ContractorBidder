@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_DEV_CLIENT": "1"
+        "EXPO_DEV_CLIENT": "1",
+        "EXPO_PUBLIC_API_URL": "https://dojobid-api-production.up.railway.app/api/v1"
       },
       "ios": {
         "simulator": false
@@ -18,16 +19,24 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_DEV_CLIENT": "1"
+        "EXPO_DEV_CLIENT": "1",
+        "EXPO_PUBLIC_API_URL": "https://dojobid-api-production.up.railway.app/api/v1"
       },
       "ios": {
         "simulator": true
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dojobid-api-production.up.railway.app/api/v1"
+      }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dojobid-api-production.up.railway.app/api/v1"
+      }
+    }
   },
   "submit": {
     "production": {}

@@ -6,12 +6,14 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { Job, JobStatus, PaymentStatus, Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { FeatureFlagsService } from '../common/feature-flags.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { boundingBox, haversineKm, toCoarse } from '../common/geo.util';
-import { CreateJobDto, JobSearchQueryDto } from './dto/job.dto';
+import { MediaService } from '../media/media.service';
+import { CreateJobDto, JobPhotoComparisonDto, JobSearchQueryDto } from './dto/job.dto';
 import { toCoarseView, toFullView } from './job.serializer';
 import { MatchingService } from './matching.service';
 
@@ -23,9 +25,45 @@ export class JobsService {
     private readonly prisma: PrismaService,
     private readonly flags: FeatureFlagsService,
     private readonly matching: MatchingService,
+    private readonly media: MediaService,
   ) {}
 
-  async create(user: AuthUser, dto: CreateJobDto) {
+  private photoResolver(req?: Request) {
+    return (url: string) => this.media.resolvePublicUrl(url, req);
+  }
+
+  private normalizePhotos(photos: string[] | undefined): string[] {
+    return (photos ?? []).map((url) => this.media.normalizeStoredUrl(url));
+  }
+
+  private normalizeComparisons(
+    userId: string,
+    comparisons: JobPhotoComparisonDto[] | undefined,
+  ): JobPhotoComparisonDto[] {
+    const max = this.flags.flags.jobsMaxPhotoComparisons;
+    const list = comparisons ?? [];
+    if (list.length > max) {
+      throw new UnprocessableEntityException({
+        code: 'TOO_MANY_PHOTO_COMPARISONS',
+        message: `A job may have at most ${max} before/after scope photos.`,
+      });
+    }
+
+    const prefix = `uploads/${userId}/`;
+    return list.map((pair) => {
+      const before = this.media.normalizeStoredUrl(pair.before);
+      const after = this.media.normalizeStoredUrl(pair.after);
+      if (!before.startsWith(prefix) || !after.startsWith(prefix)) {
+        throw new ForbiddenException({
+          code: 'NOT_YOUR_UPLOAD',
+          message: 'Scope photos must be uploads you own.',
+        });
+      }
+      return { before, after };
+    });
+  }
+
+  async create(user: AuthUser, dto: CreateJobDto, req?: Request) {
     const maxPhotos = this.flags.flags.jobsMaxPhotos;
     if (dto.photos && dto.photos.length > maxPhotos) {
       throw new UnprocessableEntityException({
@@ -61,7 +99,8 @@ export class JobsService {
         workType: dto.workType,
         desiredDatetimeStart: new Date(dto.desiredDatetimeStart),
         desiredDatetimeEnd: dto.desiredDatetimeEnd ? new Date(dto.desiredDatetimeEnd) : null,
-        photos: dto.photos ?? [],
+        photos: this.normalizePhotos(dto.photos),
+        photoComparisons: this.normalizeComparisons(user.userId, dto.photoComparisons) as unknown as Prisma.InputJsonValue,
         addressText: dto.addressText,
         contactPhone: dto.contactPhone?.trim() || null,
         locationPrecision: dto.locationPrecision ?? 'PRECISE',
@@ -83,11 +122,11 @@ export class JobsService {
       this.logger.error(`JOB_MATCH fan-out failed for job ${job.id}`, err as Error);
     }
 
-    return toFullView(job);
+    return toFullView(job, this.photoResolver(req));
   }
 
   /** Owner may edit an open job that has not received any bids yet. */
-  async update(user: AuthUser, id: string, dto: CreateJobDto) {
+  async update(user: AuthUser, id: string, dto: CreateJobDto, req?: Request) {
     const job = await this.getJobOrThrow(id);
     if (job.createdByUserId !== user.userId) {
       throw new ForbiddenException({
@@ -143,7 +182,8 @@ export class JobsService {
         workType: dto.workType,
         desiredDatetimeStart: desiredStart,
         desiredDatetimeEnd: desiredEnd,
-        photos: dto.photos ?? [],
+        photos: this.normalizePhotos(dto.photos),
+        photoComparisons: this.normalizeComparisons(user.userId, dto.photoComparisons) as unknown as Prisma.InputJsonValue,
         addressText: dto.addressText,
         contactPhone: dto.contactPhone?.trim() || null,
         locationPrecision: dto.locationPrecision ?? job.locationPrecision,
@@ -157,7 +197,7 @@ export class JobsService {
       },
     });
 
-    return toFullView(updated);
+    return toFullView(updated, this.photoResolver(req));
   }
 
   /**
@@ -165,7 +205,7 @@ export class JobsService {
    * exact Haversine distance computed in app code. Returns COARSE views only.
    * Excludes jobs posted by the searcher (e.g. a contractor's own listings).
    */
-  async search(user: AuthUser, q: JobSearchQueryDto) {
+  async search(user: AuthUser, q: JobSearchQueryDto, req?: Request) {
     const page = q.page ?? 1;
     const pageSize = q.pageSize ?? 20;
     const box = boundingBox({ lat: q.lat, lng: q.lng }, q.radiusKm);
@@ -199,16 +239,17 @@ export class JobsService {
     const total = within.length;
     const items = within
       .slice((page - 1) * pageSize, page * pageSize)
-      .map((row) => toCoarseView(row.job, row.distanceKm));
+      .map((row) => toCoarseView(row.job, row.distanceKm, this.photoResolver(req)));
 
     return { items, page, pageSize, total };
   }
 
-  async findOne(user: AuthUser, id: string) {
+  async findOne(user: AuthUser, id: string, req?: Request) {
     const job = await this.getJobOrThrow(id);
+    const resolve = this.photoResolver(req);
 
     // The owner always sees the full record.
-    if (job.createdByUserId === user.userId) return toFullView(job);
+    if (job.createdByUserId === user.userId) return toFullView(job, resolve);
 
     // The accepted contractor sees precise location only once reveal is allowed
     // (immediately when payments are off; after both fees succeed when on).
@@ -216,9 +257,9 @@ export class JobsService {
     const isAcceptedContractor =
       !!acceptedContractorUserId && acceptedContractorUserId === user.userId;
     if (isAcceptedContractor && (await this.revealAllowed(job))) {
-      return toFullView(job);
+      return toFullView(job, resolve);
     }
-    return toCoarseView(job);
+    return toCoarseView(job, undefined, resolve);
   }
 
   /** Whether the precise location may be revealed to the accepted contractor. */
@@ -228,20 +269,21 @@ export class JobsService {
     return fees.length === 2 && fees.every((f) => f.status === PaymentStatus.SUCCEEDED);
   }
 
-  async findMine(user: AuthUser) {
+  async findMine(user: AuthUser, req?: Request) {
     const jobs = await this.prisma.job.findMany({
       where: { createdByUserId: user.userId },
       orderBy: { createdAt: 'desc' },
     });
-    return jobs.map((j) => toFullView(j));
+    const resolve = this.photoResolver(req);
+    return jobs.map((j) => toFullView(j, resolve));
   }
 
-  async close(user: AuthUser, id: string) {
-    return this.transition(user, id, JobStatus.CLOSED);
+  async close(user: AuthUser, id: string, req?: Request) {
+    return this.transition(user, id, JobStatus.CLOSED, req);
   }
 
-  async cancel(user: AuthUser, id: string) {
-    return this.transition(user, id, JobStatus.CANCELLED);
+  async cancel(user: AuthUser, id: string, req?: Request) {
+    return this.transition(user, id, JobStatus.CANCELLED, req);
   }
 
   /** Permanently remove a job from the owner's list (not allowed once awarded). */
@@ -268,7 +310,7 @@ export class JobsService {
     return { deleted: true };
   }
 
-  private async transition(user: AuthUser, id: string, status: JobStatus) {
+  private async transition(user: AuthUser, id: string, status: JobStatus, req?: Request) {
     const job = await this.getJobOrThrow(id);
     if (job.createdByUserId !== user.userId) {
       throw new ForbiddenException({
@@ -277,7 +319,7 @@ export class JobsService {
       });
     }
     const updated = await this.prisma.job.update({ where: { id }, data: { status } });
-    return toFullView(updated);
+    return toFullView(updated, this.photoResolver(req));
   }
 
   private async getJobOrThrow(id: string): Promise<Job> {

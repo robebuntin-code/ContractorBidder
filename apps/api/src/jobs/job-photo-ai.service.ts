@@ -1,0 +1,182 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
+import type { Request } from 'express';
+import { FeatureFlagsService } from '../common/feature-flags.service';
+import { AuthUser } from '../common/decorators/current-user.decorator';
+import { DevMediaService } from '../media/dev-media.service';
+import { MediaService } from '../media/media.service';
+import type { JobPhotoEditDto } from './dto/photo-edit.dto';
+
+export interface JobPhotoEditResult {
+  key: string;
+}
+
+@Injectable()
+export class JobPhotoAiService {
+  private readonly logger = new Logger('JobPhotoAi');
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly flags: FeatureFlagsService,
+    private readonly media: MediaService,
+    private readonly devMedia: DevMediaService,
+  ) {}
+
+  async edit(user: AuthUser, dto: JobPhotoEditDto, req?: Request): Promise<JobPhotoEditResult> {
+    if (!this.flags.flags.aiPhotoEditEnabled) {
+      throw new ServiceUnavailableException({
+        code: 'AI_PHOTO_EDIT_DISABLED',
+        message: 'AI photo editing is not enabled.',
+      });
+    }
+
+    const token = this.config.get<string>('REPLICATE_API_TOKEN')?.trim();
+    if (!token) {
+      throw new ServiceUnavailableException({
+        code: 'AI_PHOTO_EDIT_NOT_CONFIGURED',
+        message: 'AI photo editing is not configured on the server.',
+      });
+    }
+
+    const sourceKey = this.media.normalizeStoredUrl(dto.sourceKey);
+    this.assertOwnedSourceKey(user.userId, sourceKey);
+
+    const inputImageUrl = this.publicMediaUrl(sourceKey, req);
+    const model =
+      this.config.get<string>('AI_PHOTO_EDIT_MODEL')?.trim() ||
+      'black-forest-labs/flux-kontext-pro';
+
+    const outputUrl = await this.runReplicate(model, token, {
+      prompt: dto.prompt.trim(),
+      input_image: inputImageUrl,
+      aspect_ratio: 'match_input_image',
+      output_format: 'jpeg',
+    });
+
+    const imageRes = await fetch(outputUrl);
+    if (!imageRes.ok) {
+      throw new ServiceUnavailableException({
+        code: 'AI_PHOTO_EDIT_DOWNLOAD_FAILED',
+        message: 'Could not retrieve the edited image.',
+      });
+    }
+
+    const body = Buffer.from(await imageRes.arrayBuffer());
+    if (body.length < 512) {
+      throw new BadRequestException({
+        code: 'AI_PHOTO_EDIT_EMPTY',
+        message: 'The AI returned an empty image. Try a different prompt.',
+      });
+    }
+
+    const key = `uploads/${user.userId}/${randomUUID()}.jpg`;
+    await this.devMedia.save(key, body, 'image/jpeg');
+
+    return { key };
+  }
+
+  private assertOwnedSourceKey(userId: string, sourceKey: string): void {
+    const expectedPrefix = `uploads/${userId}/`;
+    if (!sourceKey.startsWith(expectedPrefix)) {
+      throw new ForbiddenException({
+        code: 'NOT_YOUR_UPLOAD',
+        message: 'You can only edit photos you uploaded.',
+      });
+    }
+  }
+
+  /** URL Replicate can fetch — must be public HTTPS. */
+  private publicMediaUrl(sourceKey: string, req?: Request): string {
+    const configured = this.config.get<string>('MEDIA_PUBLIC_BASE_URL')?.trim();
+    if (configured) {
+      return `${configured.replace(/\/$/, '')}/${sourceKey}`;
+    }
+    const resolved = this.media.resolvePublicUrl(sourceKey, req);
+    if (!/^https:\/\//i.test(resolved)) {
+      throw new ServiceUnavailableException({
+        code: 'AI_PHOTO_EDIT_NO_PUBLIC_URL',
+        message:
+          'Set MEDIA_PUBLIC_BASE_URL (e.g. https://dojobid.com/api/v1/dev-media) so the AI can read uploaded photos.',
+      });
+    }
+    return resolved;
+  }
+
+  private async runReplicate(
+    model: string,
+    token: string,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const waitSeconds = Number(this.config.get('AI_PHOTO_EDIT_WAIT_SECONDS') ?? 120);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), waitSeconds * 1000);
+
+    try {
+      const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Prefer: `wait=${waitSeconds}`,
+        },
+        body: JSON.stringify({ input }),
+        signal: controller.signal,
+      });
+
+      const payload = (await res.json()) as {
+        error?: string;
+        detail?: string;
+        status?: string;
+        output?: string | string[] | null;
+      };
+
+      if (!res.ok) {
+        this.logger.warn(`Replicate error ${res.status}: ${JSON.stringify(payload)}`);
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_FAILED',
+          message: payload.detail || payload.error || 'AI photo edit failed. Try again.',
+        });
+      }
+
+      if (payload.status && payload.status !== 'succeeded') {
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_FAILED',
+          message: payload.error || 'AI photo edit did not complete. Try again.',
+        });
+      }
+
+      const output = payload.output;
+      const url = Array.isArray(output) ? output[0] : output;
+      if (!url || typeof url !== 'string') {
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_NO_OUTPUT',
+          message: 'AI photo edit returned no image.',
+        });
+      }
+
+      return url;
+    } catch (err) {
+      if (err instanceof ServiceUnavailableException) throw err;
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_TIMEOUT',
+          message: 'AI photo edit timed out. Try a simpler prompt.',
+        });
+      }
+      this.logger.error('Replicate request failed', err as Error);
+      throw new ServiceUnavailableException({
+        code: 'AI_PHOTO_EDIT_FAILED',
+        message: 'AI photo edit failed. Try again in a moment.',
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}

@@ -7,8 +7,6 @@ interface JobDescriptionSuggestionsProps {
   title: string;
   workType: string;
   description: string;
-  fetchToken: number;
-  hidden: boolean;
   onAppend: (line: string) => void;
 }
 
@@ -16,14 +14,13 @@ export function JobDescriptionSuggestions({
   title,
   workType,
   description,
-  fetchToken,
-  hidden,
   onAppend,
 }: JobDescriptionSuggestionsProps) {
   const [enabled, setEnabled] = useState(false);
   const [suggestions, setSuggestions] = useState<{ topic: string; prompt: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [hasFetched, setHasFetched] = useState(false);
+  const [requested, setRequested] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -33,19 +30,23 @@ export function JobDescriptionSuggestions({
       .catch(() => setEnabled(false));
   }, []);
 
-  const fetchSuggestions = useCallback(() => {
+  const canRequest = enabled && title.trim().length >= 3;
+
+  const requestSuggestions = useCallback(() => {
     if (!enabled) return;
 
     const trimmedTitle = title.trim();
     if (trimmedTitle.length < 3) {
       setSuggestions([]);
-      setHasFetched(false);
+      setRequested(true);
+      setError('Enter a job title first (at least 3 characters).');
       return;
     }
 
     const id = ++requestId.current;
     setLoading(true);
-    setHasFetched(true);
+    setRequested(true);
+    setError(null);
 
     void api
       .suggestJobDescription({
@@ -60,52 +61,100 @@ export function JobDescriptionSuggestions({
       .catch(() => {
         if (id !== requestId.current) return;
         setSuggestions([]);
+        setError('Could not load recommendations. Try again in a moment.');
       })
       .finally(() => {
         if (id === requestId.current) setLoading(false);
       });
   }, [enabled, title, workType, description]);
 
-  useEffect(() => {
-    if (fetchToken < 1) return;
-    fetchSuggestions();
-  }, [fetchToken, fetchSuggestions]);
-
-  const visible = enabled && hasFetched && !hidden;
-  if (!visible) return null;
-  if (!loading && suggestions.length === 0) return null;
+  if (!enabled) return null;
 
   return (
     <View style={local.wrap}>
-      <Text style={local.title}>
-        {loading ? 'Checking your description…' : 'Consider adding these details'}
-      </Text>
-      {loading ? (
-        <ActivityIndicator color={colors.primary} style={local.spinner} />
-      ) : (
-        suggestions.map((item) => (
-          <View key={item.topic} style={local.card}>
-            <View style={local.cardBody}>
-              <Text style={local.topic}>{item.topic}</Text>
-              <Text style={local.prompt}>{item.prompt}</Text>
-            </View>
-            <TouchableOpacity
-              style={local.addBtn}
-              onPress={() => onAppend(`${item.topic}: `)}
-            >
-              <Text style={local.addBtnText}>Add line</Text>
-            </TouchableOpacity>
-          </View>
-        ))
-      )}
+      <TouchableOpacity
+        style={[local.suggestBtn, (!canRequest || loading) && local.suggestBtnDisabled]}
+        onPress={requestSuggestions}
+        disabled={!canRequest || loading}
+      >
+        <Text style={local.suggestBtnText}>
+          {loading ? 'Checking description…' : 'Get description recommendations'}
+        </Text>
+      </TouchableOpacity>
+
+      {!canRequest ? (
+        <Text style={local.hint}>Add a job title first to get recommendations.</Text>
+      ) : null}
+
+      {error ? <Text style={local.error}>{error}</Text> : null}
+
+      {requested && !loading && !error && suggestions.length === 0 ? (
+        <Text style={local.hint}>Your description already covers the key details contractors need.</Text>
+      ) : null}
+
+      {requested && (loading || suggestions.length > 0) ? (
+        <View style={local.results}>
+          {loading ? (
+            <ActivityIndicator color={colors.primary} style={local.spinner} />
+          ) : (
+            <>
+              <Text style={local.title}>Consider adding these details</Text>
+              {suggestions.map((item) => (
+                <View key={item.topic} style={local.card}>
+                  <View style={local.cardBody}>
+                    <Text style={local.topic}>{item.topic}</Text>
+                    <Text style={local.prompt}>{item.prompt}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={local.addBtn}
+                    onPress={() => onAppend(`${item.topic}: `)}
+                  >
+                    <Text style={local.addBtnText}>Add line</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const local = StyleSheet.create({
   wrap: {
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 4,
+    gap: 8,
+  },
+  suggestBtn: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#eff6ff',
+  },
+  suggestBtnDisabled: {
+    opacity: 0.55,
+  },
+  suggestBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  hint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.muted,
+  },
+  error: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#b91c1c',
+  },
+  results: {
     gap: 8,
   },
   title: {

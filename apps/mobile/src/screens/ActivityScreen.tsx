@@ -142,7 +142,7 @@ export default function ActivityScreen({ navigation }: NativeStackScreenProps<Ac
           return (
             <FeedListCard
               badge={LABELS[item.type] ?? item.type}
-              title={body || (LABELS[item.type] ?? item.type)}
+              title={body ? body : (LABELS[item.type] ?? item.type)}
               subtitle={new Date(item.createdAt).toLocaleString()}
               onPress={jobId ? () => navigation.navigate('JobDetail', { jobId }) : undefined}
               pressDisabled={!jobId || busy}

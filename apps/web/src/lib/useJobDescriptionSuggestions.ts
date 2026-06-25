@@ -8,13 +8,12 @@ export function useJobDescriptionSuggestions(
   title: string,
   workType: WorkType,
   description: string,
-  fetchToken: number,
-  hidden: boolean,
 ) {
   const [enabled, setEnabled] = useState(false);
   const [suggestions, setSuggestions] = useState<{ topic: string; prompt: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [hasFetched, setHasFetched] = useState(false);
+  const [requested, setRequested] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -24,19 +23,21 @@ export function useJobDescriptionSuggestions(
       .catch(() => setEnabled(false));
   }, []);
 
-  const fetchSuggestions = useCallback(() => {
+  const requestSuggestions = useCallback(() => {
     if (!enabled) return;
 
     const trimmedTitle = title.trim();
     if (trimmedTitle.length < 3) {
       setSuggestions([]);
-      setHasFetched(false);
+      setRequested(true);
+      setError('Enter a job title first (at least 3 characters).');
       return;
     }
 
     const id = ++requestId.current;
     setLoading(true);
-    setHasFetched(true);
+    setRequested(true);
+    setError(null);
 
     void api
       .suggestJobDescription({
@@ -51,18 +52,20 @@ export function useJobDescriptionSuggestions(
       .catch(() => {
         if (id !== requestId.current) return;
         setSuggestions([]);
+        setError('Could not load recommendations. Try again in a moment.');
       })
       .finally(() => {
         if (id === requestId.current) setLoading(false);
       });
   }, [enabled, title, workType, description]);
 
-  useEffect(() => {
-    if (fetchToken < 1) return;
-    fetchSuggestions();
-  }, [fetchToken, fetchSuggestions]);
-
-  const visible = enabled && hasFetched && !hidden;
-
-  return { visible, suggestions, loading };
+  return {
+    enabled,
+    suggestions,
+    loading,
+    requested,
+    error,
+    requestSuggestions,
+    canRequest: enabled && title.trim().length >= 3,
+  };
 }

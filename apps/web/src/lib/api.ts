@@ -17,7 +17,7 @@ import type {
   RegisterDto,
   UpdateMeDto,
 } from '@contractor-bidder/types';
-import { resolveMediaUrl } from './mediaUrl';
+import { extractMediaKey, resolveMediaUrl } from './mediaUrl';
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:4000/api/v1';
@@ -162,12 +162,19 @@ export const api = {
       messagingGroupVisible: boolean;
       jobsMaxPhotos: number;
       aiJobDescriptionEnabled: boolean;
+      aiPhotoEditEnabled: boolean;
     }>('/flags'),
 
   suggestJobDescription: (dto: JobDescriptionSuggestionsDto) =>
     request<JobDescriptionSuggestionsResponse>('/jobs/description-suggestions', {
       method: 'POST',
       body: JSON.stringify(dto),
+    }),
+
+  editJobPhoto: (sourceKey: string, prompt: string) =>
+    request<{ key: string }>('/jobs/photo-edit', {
+      method: 'POST',
+      body: JSON.stringify({ sourceKey, prompt }),
     }),
 
   searchJobs: (params: {
@@ -366,7 +373,8 @@ export async function uploadToSignedUrl(
   if (!res.ok) {
     throw new Error(`Upload failed (${res.status}). Try again or use a smaller image.`);
   }
-  return resolveMediaUrl(signed.fileUrl);
+  // Persist stable object keys — survives host changes and redeploys.
+  return signed.key || extractMediaKey(signed.fileUrl) || resolveMediaUrl(signed.fileUrl);
 }
 
 export interface AdminUser {

@@ -13,6 +13,15 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'DOJOBID',
   description: 'Marketplace connecting homeowners and contractors.',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'DOJOBID',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    apple: '/app-icon.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

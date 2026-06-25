@@ -23,6 +23,13 @@ import { inferImageContentType, imageExtensionForContentType } from '@/lib/uploa
 import { formatPhoneDisplay, formatPhoneInput, phoneDigits, phoneForStorage } from '@/lib/phoneFormat';
 import { SERVICE_TYPE_OPTIONS } from '@/lib/theme';
 import { JobDescriptionSuggestions } from '@/components/JobDescriptionSuggestions';
+import {
+  JobPhotoAiEditButton,
+  JobPhotoAiEditModal,
+  type JobPhotoAiEditTarget,
+} from '@/components/JobPhotoAiEdit';
+import { ScopeComparisonDraftList, type ScopeComparisonDraft } from '@/components/JobScopeComparisons';
+import { extractMediaKey } from '@/lib/mediaUrl';
 
 const MAX_PHOTOS = 4;
 
@@ -39,8 +46,6 @@ export default function EditJobPage() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [descriptionFocused, setDescriptionFocused] = useState(false);
-  const [descriptionFetchToken, setDescriptionFetchToken] = useState(0);
   const [workType, setWorkType] = useState<WorkType>('plumbing');
   const [addressText, setAddressText] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -57,6 +62,8 @@ export default function EditJobPage() {
   const [loadingJob, setLoadingJob] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [aiEditTarget, setAiEditTarget] = useState<JobPhotoAiEditTarget | null>(null);
+  const [scopeComparisons, setScopeComparisons] = useState<ScopeComparisonDraft[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,6 +103,15 @@ export default function EditJobPage() {
             id: `existing_${index}`,
             previewUrl: resolveMediaUrl(url),
             fileUrl: url,
+          })),
+        );
+        setScopeComparisons(
+          (job.photoComparisons ?? []).map((pair, index) => ({
+            id: `existing_scope_${index}`,
+            beforeKey: pair.before,
+            afterKey: pair.after,
+            beforePreview: resolveMediaUrl(pair.before),
+            afterPreview: resolveMediaUrl(pair.after),
           })),
         );
       } catch (e) {
@@ -156,6 +172,39 @@ export default function EditJobPage() {
     });
   }
 
+  async function resolvePhotoSourceKey(target: JobPhotoAiEditTarget): Promise<string> {
+    if (!target.fileUrl) {
+      throw new Error('Wait for the photo to finish uploading.');
+    }
+    return extractMediaKey(target.fileUrl) ?? target.fileUrl;
+  }
+
+  function applyScopeComparison(
+    photoId: string,
+    result: {
+      beforeKey: string;
+      afterKey: string;
+      beforePreview: string;
+      afterPreview: string;
+    },
+  ) {
+    setScopeComparisons((prev) => [
+      ...prev,
+      {
+        id: `scope_${Date.now()}`,
+        beforeKey: result.beforeKey,
+        afterKey: result.afterKey,
+        beforePreview: result.beforePreview,
+        afterPreview: result.afterPreview,
+      },
+    ]);
+    setPhotos((prev) => {
+      const photo = prev.find((p) => p.id === photoId);
+      if (photo?.previewUrl.startsWith('blob:')) URL.revokeObjectURL(photo.previewUrl);
+      return prev.filter((p) => p.id !== photoId);
+    });
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!jobId) return;
@@ -206,6 +255,9 @@ export default function EditJobPage() {
         lng,
         photos: photos.length
           ? photos.map((p) => p.fileUrl).filter((url): url is string => !!url)
+          : undefined,
+        photoComparisons: scopeComparisons.length
+          ? scopeComparisons.map((s) => ({ before: s.beforeKey, after: s.afterKey }))
           : undefined,
         budgetMin: min,
         budgetMax: max,
@@ -267,11 +319,6 @@ export default function EditJobPage() {
             rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            onFocus={() => setDescriptionFocused(true)}
-            onBlur={() => {
-              setDescriptionFocused(false);
-              setDescriptionFetchToken((token) => token + 1);
-            }}
             placeholder="What needs to be done? Include any details contractors should know…"
             required
             minLength={10}
@@ -281,8 +328,6 @@ export default function EditJobPage() {
             title={title}
             workType={workType}
             description={description}
-            fetchToken={descriptionFetchToken}
-            hidden={descriptionFocused}
             onAppend={(line) =>
               setDescription((prev) => {
                 const trimmed = prev.trim();
@@ -294,13 +339,21 @@ export default function EditJobPage() {
 
           <p className="field-label">Photos</p>
           <p className="field-hint">
-            Optional — up to {MAX_PHOTOS} photos help contractors understand the job.
+            Optional — reference photos and before/after scope images help contractors understand the job.
           </p>
+          <ScopeComparisonDraftList
+            items={scopeComparisons}
+            onRemove={(id) => setScopeComparisons((prev) => prev.filter((s) => s.id !== id))}
+          />
           <div className="photo-row">
             {photos.map((photo) => (
               <div key={photo.id} className="photo-wrap">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photo.previewUrl} alt="" className="photo-thumb" />
+                <JobPhotoAiEditButton
+                  disabled={busy || uploading || !photo.fileUrl}
+                  onClick={() => setAiEditTarget(photo)}
+                />
                 <button type="button" className="photo-remove" onClick={() => removePhoto(photo.id)}>
                   ×
                 </button>
@@ -495,6 +548,13 @@ export default function EditJobPage() {
           {busy ? 'Saving…' : 'Save changes'}
         </button>
       </form>
+
+      <JobPhotoAiEditModal
+        target={aiEditTarget}
+        onClose={() => setAiEditTarget(null)}
+        resolveSourceKey={resolvePhotoSourceKey}
+        onApply={applyScopeComparison}
+      />
     </div>
   );
 }

@@ -30,6 +30,10 @@ const HEURISTIC_RULES: HeuristicRule[] = [
         prompt: 'What size water heater do you need (e.g. 40 or 50 gallon)?',
       },
       {
+        topic: 'Brand preference',
+        prompt: 'Do you have a preferred brand or model (e.g. Rheem, AO Smith, Bradford White)?',
+      },
+      {
         topic: 'Fuel type',
         prompt: 'Is the water heater gas or electric?',
       },
@@ -40,6 +44,32 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       {
         topic: 'Location',
         prompt: 'Where is the water heater located (basement, garage, closet)?',
+      },
+    ],
+  },
+  {
+    match:
+      /landscaping rock|landscape rock|decorative rock|river rock delivery|rock delivery|deliver(?:y|)\s+(?:of\s+)?(?:landscaping\s+)?rock|rock\s+delivered/i,
+    suggestions: [
+      {
+        topic: 'Rock type',
+        prompt: 'What type of rock do you want (e.g. pea gravel, #57 stone, lava rock, river rock)?',
+      },
+      {
+        topic: 'Quantity',
+        prompt: 'Roughly how much rock do you need (tons, cubic yards, or bags)?',
+      },
+      {
+        topic: 'Delivery logistics',
+        prompt: 'Where should the rock be dumped, and are there access limits (narrow driveway, low gate, steep grade)?',
+      },
+      {
+        topic: 'Spreading',
+        prompt: 'Should the contractor spread the rock, or is delivery/dump only?',
+      },
+      {
+        topic: 'Timing',
+        prompt: 'When do you need delivery, and will someone be home to direct placement?',
       },
     ],
   },
@@ -66,7 +96,7 @@ const HEURISTIC_RULES: HeuristicRule[] = [
   },
   {
     match:
-      /\bpalm\b|palm tree|tree install|plant(?:ing)?\s+(?:\d+\s+)?(?:tree|trees|palm|palms|shrub|shrubs)|install\s+\d+\s+(?:tree|trees|palm|palms)|(?:tree|trees|shrub|shrubs)\s+to\s+plant/i,
+      /\b(?:\d+\s+)?palm(?:s)?\b|palm tree|tree install|plant(?:ing)?\s+(?:\d+\s+)?(?:tree|trees|palm|palms|shrub|shrubs)|install\s+\d+\s+(?:tree|trees|palm|palms)|(?:tree|trees|shrub|shrubs)\s+to\s+plant/i,
     suggestions: [
       {
         topic: 'Tree supply',
@@ -74,7 +104,7 @@ const HEURISTIC_RULES: HeuristicRule[] = [
       },
       {
         topic: 'Species & size',
-        prompt: 'What species or mature height are the trees (e.g. queen palm, 10 ft)?',
+        prompt: 'What kind of palm trees do you prefer (e.g. queen palm, sabal, adonidia) and what size?',
       },
       {
         topic: 'Planting locations',
@@ -180,18 +210,73 @@ export class JobDescriptionAiService {
       throw new ServiceUnavailableException('Job description suggestions are disabled.');
     }
 
-    const apiKey = this.config.get<string>('GEMINI_API_KEY')?.trim();
+    const apiKey = this.config.get<string>('OPENROUTER_API_KEY')?.trim();
     if (apiKey) {
       try {
-        return await this.suggestWithGemini(dto, apiKey);
+        return await this.suggestWithLlm(dto, apiKey);
       } catch (err) {
         this.logger.warn(
-          `Gemini suggestion failed, using heuristics: ${err instanceof Error ? err.message : err}`,
+          `LLM suggestion failed, using heuristics: ${err instanceof Error ? err.message : err}`,
         );
       }
     }
 
     return { suggestions: this.suggestWithHeuristics(dto) };
+  }
+
+  private buildSuggestionPrompt(dto: JobDescriptionSuggestionsDto): {
+    system: string;
+    user: string;
+  } {
+    const system = `You help homeowners improve job postings on a contractor marketplace.
+Given a job title, work type, and description draft, identify important details that are MISSING and that contractors need to bid accurately.
+
+Return ONLY valid JSON in this shape:
+{"suggestions":[{"topic":"short label","prompt":"question for the homeowner"}]}
+
+Rules:
+- Suggest 2-5 items max
+- Only suggest details not already covered in the description
+- Tailor every suggestion to the specific job described — read the title and description carefully
+- Be specific (e.g. water heater capacity, preferred brand, gas vs electric, palm species, rock type, haul-away of old unit)
+- Include logistical constraints when relevant (narrow driveway, gate width, stairs, permit needs, delivery placement, dump location)
+- Do NOT suggest generic filler if the job is already specific; suggest only what is still missing
+- Prompts should be concise questions the homeowner can answer in one sentence
+
+Examples:
+- "New water heater" → ask about gallon capacity, gas vs electric, preferred brand/model, old unit removal
+- "Install 2 palm trees" → ask about palm species/size, who supplies trees, planting locations, equipment access, stump/irrigation prep
+- "Landscaping rock delivery" → ask rock type, quantity, dump location, driveway/access constraints, spread vs dump only
+- "Gravel delivery" → ask gravel type, quantity, dump location, driveway/access constraints`;
+
+    const user = `Title: ${dto.title}
+Work type: ${dto.workType}
+Description:
+${dto.description.trim() || '(empty)'}`;
+
+    return { system, user };
+  }
+
+  private parseSuggestionsFromContent(content: string): JobDescriptionSuggestion[] {
+    const trimmed = content.trim();
+    const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('LLM returned no JSON object');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as { suggestions?: JobDescriptionSuggestion[] };
+    return (parsed.suggestions ?? [])
+      .filter((s) => s?.topic?.trim() && s?.prompt?.trim())
+      .slice(0, 5)
+      .map((s) => ({ topic: s.topic.trim(), prompt: s.prompt.trim() }));
+  }
+
+  private filterUncoveredSuggestions(
+    dto: JobDescriptionSuggestionsDto,
+    suggestions: JobDescriptionSuggestion[],
+  ): JobDescriptionSuggestion[] {
+    const haystack = `${dto.title}\n${dto.description}`.toLowerCase();
+    return suggestions.filter((s) => !this.suggestionAlreadyCovered(s, haystack));
   }
 
   private suggestWithHeuristics(
@@ -234,6 +319,28 @@ export class JobDescriptionAiService {
 
     if (topic.includes('water heater size') || (topic.includes('size') && prompt.includes('gallon'))) {
       return /\b\d+\s*(-?\s*)?(gallon|gal)\b/.test(haystack);
+    }
+
+    if (topic.includes('brand')) {
+      return /rheem|ao smith|bradford white|navien|rinnai|state water|brand|model|preferred (brand|model)/.test(
+        haystack,
+      );
+    }
+
+    if (topic.includes('delivery logistics') || (topic.includes('delivery') && prompt.includes('dumped'))) {
+      return /dump (at|in|on|near)|deliver to|drop off|placement|where (to|should)|driveway|gate|access|narrow|steep|side yard|backyard|front yard/.test(
+        haystack,
+      );
+    }
+
+    if (topic.includes('timing') && prompt.includes('delivery')) {
+      return /deliver (on|by|before|after)|delivery date|when (do you|should)|schedule|asap|week of|monday|tuesday|wednesday|thursday|friday|saturday|sunday/.test(
+        haystack,
+      );
+    }
+
+    if (topic.includes('spreading')) {
+      return /spread|install|place|lay|rake|spread only|delivery only|dump only/.test(haystack);
     }
 
     if (topic.includes('removal') || topic.includes('haul') || topic.includes('tear-off')) {
@@ -353,74 +460,53 @@ export class JobDescriptionAiService {
     );
   }
 
-  private async suggestWithGemini(
+  private async suggestWithLlm(
     dto: JobDescriptionSuggestionsDto,
     apiKey: string,
   ): Promise<JobDescriptionSuggestionsResult> {
     const model =
-      this.config.get<string>('GEMINI_MODEL')?.trim() || 'gemini-2.0-flash';
+      this.config.get<string>('AI_MODEL')?.trim() || 'qwen/qwen-2.5-7b-instruct';
+    const baseUrl =
+      this.config.get<string>('OPENROUTER_BASE_URL')?.trim() ||
+      'https://openrouter.ai/api/v1';
 
-    const system = `You help homeowners improve job postings on a contractor marketplace.
-Given a job title, work type, and description draft, identify important details that are MISSING and that contractors need to bid accurately.
-
-Return ONLY valid JSON in this shape:
-{"suggestions":[{"topic":"short label","prompt":"question for the homeowner"}]}
-
-Rules:
-- Suggest 2-5 items max
-- Only suggest details not already covered in the description
-- Tailor every suggestion to the specific job described — read the title and description carefully
-- Be specific (e.g. water heater size, gas vs electric, palm species, gravel type, haul-away of old unit)
-- Include logistical constraints when relevant (narrow driveway, gate width, stairs, permit needs, delivery placement)
-- Do NOT suggest generic filler if the job is already specific; suggest only what is still missing
-- Prompts should be concise questions the homeowner can answer in one sentence
-
-Examples:
-- "Install 2 palm trees" → ask about species/size, who supplies trees, planting locations, equipment access, stump/irrigation prep
-- "Gravel delivery" → ask gravel type, quantity, dump location, driveway/access constraints`;
-
-    const user = `Title: ${dto.title}
-Work type: ${dto.workType}
-Description:
-${dto.description.trim() || '(empty)'}`;
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const { system, user } = this.buildSuggestionPrompt(dto);
+    const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://dojobid.com',
+        'X-OpenRouter-Title': 'DOJOBID',
+      },
       body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${system}\n\n${user}` }],
-          },
+        model,
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
         ],
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: 'application/json',
-        },
+        response_format: { type: 'json_object' },
       }),
     });
 
     if (!res.ok) {
       const body = await res.text();
-      throw new Error(`Gemini HTTP ${res.status}: ${body.slice(0, 200)}`);
+      throw new Error(`OpenRouter HTTP ${res.status}: ${body.slice(0, 200)}`);
     }
 
     const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      choices?: { message?: { content?: string } }[];
     };
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error('Gemini returned empty content');
+      throw new Error('OpenRouter returned empty content');
     }
 
-    const parsed = JSON.parse(content) as { suggestions?: JobDescriptionSuggestion[] };
-    const suggestions = (parsed.suggestions ?? [])
-      .filter((s) => s?.topic?.trim() && s?.prompt?.trim())
-      .slice(0, 5)
-      .map((s) => ({ topic: s.topic.trim(), prompt: s.prompt.trim() }));
+    const parsed = this.parseSuggestionsFromContent(content);
+    const suggestions = this.filterUncoveredSuggestions(dto, parsed);
 
     if (!suggestions.length) {
       return { suggestions: this.suggestWithHeuristics(dto) };

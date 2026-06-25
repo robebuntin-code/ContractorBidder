@@ -1,0 +1,24 @@
+{
+  "name": "DOJOBID",
+  "short_name": "DOJOBID",
+  "description": "Homeowners post jobs. Contractors bid and get hired.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F7F7",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

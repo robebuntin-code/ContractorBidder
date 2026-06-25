@@ -85,18 +85,30 @@ $vars = @{
   JWT_REFRESH_SECRET = $jwtRefresh
   JWT_ACCESS_TTL = '900s'
   JWT_REFRESH_TTL = '30d'
-  API_CORS_ORIGIN = 'http://localhost:3000,http://127.0.0.1:3000'
+  API_CORS_ORIGIN = 'https://dojobid.com,https://www.dojobid.com,http://localhost:3000,http://127.0.0.1:3000'
   PAYMENTS_ENABLED = 'false'
   MESSAGING_GROUP_VISIBLE = 'false'
   PROFILE_REQUIRE_VERIFICATION = 'false'
   JOBS_MAX_PHOTOS = '4'
   AI_JOB_DESCRIPTION_ENABLED = 'true'
-  GEMINI_MODEL = 'gemini-2.0-flash'
+  AI_MODEL = 'qwen/qwen-2.5-7b-instruct'
+  AI_PHOTO_EDIT_ENABLED = 'true'
+  MEDIA_PUBLIC_BASE_URL = 'https://dojobid.com/api/v1/dev-media'
   AWS_REGION = 'us-east-1'
 }
 
 foreach ($entry in $vars.GetEnumerator()) {
   Invoke-Railway variable set "$($entry.Key)=$($entry.Value)" --skip-deploys
+}
+
+foreach ($optionalKey in @('OPENROUTER_API_KEY', 'REPLICATE_API_TOKEN')) {
+  $optionalVal = $localEnv[$optionalKey]
+  if ($optionalVal -and $optionalVal -notmatch '^\s*$') {
+    Write-Host "Setting Railway variable $optionalKey (from apps/api/.env)..."
+    Invoke-Railway variable set "$optionalKey=$optionalVal" --skip-deploys
+  } else {
+    Write-Host "Skipping $optionalKey — not set in apps/api/.env"
+  }
 }
 
 Write-Host 'Deploying to Railway...'

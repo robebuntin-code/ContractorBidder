@@ -1,14 +1,32 @@
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { raw } from 'express';
+import { json, raw, urlencoded, type Request } from 'express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap(): Promise<void> {
   // rawBody is required so the Stripe webhook can verify its signature.
-  const app = await NestFactory.create(AppModule, { bufferLogs: false, rawBody: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: false, bodyParser: false });
   const config = app.get(ConfigService);
+
+  // React Native fetch sends Content-Type with charset=UTF-8; body-parser only accepts utf-8.
+  app.use((req, _res, next) => {
+    const contentType = req.headers['content-type'];
+    if (typeof contentType === 'string') {
+      req.headers['content-type'] = contentType.replace(/charset=UTF-8/gi, 'charset=utf-8');
+    }
+    next();
+  });
+
+  app.use(
+    json({
+      verify: (req, _res, buf) => {
+        (req as Request & { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
+  app.use(urlencoded({ extended: true }));
 
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });

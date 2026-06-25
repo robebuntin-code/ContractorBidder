@@ -176,6 +176,8 @@ model Job {
   desiredDatetimeStart DateTime         @map("desired_datetime_start")
   desiredDatetimeEnd  DateTime?         @map("desired_datetime_end")
   photos              String[]
+  /** [{ before: uploads/…, after: uploads/… }] — AI or manual scope visualization */
+  photoComparisons    Json              @default("[]") @map("photo_comparisons")
   addressText         String            @map("address_text")
   contactPhone        String?           @map("contact_phone")
   locationPrecision   LocationPrecision @default(PRECISE) @map("location_precision")

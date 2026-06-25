@@ -32,10 +32,19 @@ import {
   validateTimeframe,
 } from '../utils/jobDates';
 import { formatPhoneDisplay, formatPhoneInput, phoneDigits, phoneForStorage } from '../utils/phoneFormat';
-import { resolveMediaUrl } from '../utils/mediaUrl';
+import { extractMediaKey, resolveMediaUrl, resolvePhotoUrls } from '../utils/mediaUrl';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SharedStackParamList } from '../navTypes';
 import { JobDescriptionSuggestions } from '../components/JobDescriptionSuggestions';
+import {
+  JobPhotoAiEditButton,
+  JobPhotoAiEditModal,
+  type JobPhotoAiEditTarget,
+} from '../components/JobPhotoAiEdit';
+import {
+  ScopeComparisonDraftList,
+  type ScopeComparisonDraft,
+} from '../components/JobScopeComparisons';
 
 const MAX_PHOTOS = 4;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
@@ -61,8 +70,6 @@ export default function PostJobScreen({
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [descriptionFocused, setDescriptionFocused] = useState(false);
-  const [descriptionFetchToken, setDescriptionFetchToken] = useState(0);
   const [workType, setWorkType] = useState('plumbing');
   const [addressText, setAddressText] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -80,6 +87,8 @@ export default function PostJobScreen({
   const [loadingJob, setLoadingJob] = useState(isEditing);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [aiEditTarget, setAiEditTarget] = useState<JobPhotoAiEditTarget | null>(null);
+  const [scopeComparisons, setScopeComparisons] = useState<ScopeComparisonDraft[]>([]);
 
   useEffect(() => {
     if (!isEditing || !jobId) return;
@@ -114,10 +123,20 @@ export default function PostJobScreen({
         setFlexibleStart(tf.flexibleStart);
         setFlexibleEnd(tf.flexibleEnd);
         setPhotos(
-          job.photos.map((url, index) => ({
+          resolvePhotoUrls(job.photos).map((previewUri, index) => ({
             id: `existing_${index}`,
-            previewUri: resolveMediaUrl(url),
-            fileUrl: url,
+            previewUri,
+            fileUrl:
+              extractMediaKey(job.photos[index] ?? '') ?? job.photos[index] ?? null,
+          })),
+        );
+        setScopeComparisons(
+          (job.photoComparisons ?? []).map((pair, index) => ({
+            id: `existing_scope_${index}`,
+            beforeKey: pair.before,
+            afterKey: pair.after,
+            beforePreview: resolveMediaUrl(pair.before),
+            afterPreview: resolveMediaUrl(pair.after),
           })),
         );
       } catch (e) {
@@ -259,6 +278,35 @@ export default function PostJobScreen({
     }
   }
 
+  async function resolvePhotoSourceKey(target: JobPhotoAiEditTarget): Promise<string> {
+    if (!target.fileUrl) {
+      throw new Error('Wait for the photo to finish uploading.');
+    }
+    return extractMediaKey(target.fileUrl) ?? target.fileUrl;
+  }
+
+  function applyScopeComparison(
+    photoId: string,
+    result: {
+      beforeKey: string;
+      afterKey: string;
+      beforePreview: string;
+      afterPreview: string;
+    },
+  ) {
+    setScopeComparisons((prev) => [
+      ...prev,
+      {
+        id: `scope_${Date.now()}`,
+        beforeKey: result.beforeKey,
+        afterKey: result.afterKey,
+        beforePreview: result.beforePreview,
+        afterPreview: result.afterPreview,
+      },
+    ]);
+    setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+  }
+
   async function submit() {
     setError(null);
 
@@ -307,7 +355,13 @@ export default function PostJobScreen({
         lat,
         lng,
         photos: photos.length
-          ? photos.map((p) => p.fileUrl).filter((url): url is string => !!url)
+          ? photos
+              .map((p) => p.fileUrl)
+              .filter((url): url is string => !!url)
+              .map((url) => extractMediaKey(url) ?? url)
+          : undefined,
+        photoComparisons: scopeComparisons.length
+          ? scopeComparisons.map((s) => ({ before: s.beforeKey, after: s.afterKey }))
           : undefined,
         budgetMin: min,
         budgetMax: max,
@@ -358,11 +412,6 @@ export default function PostJobScreen({
           style={[local.input, local.textArea]}
           value={description}
           onChangeText={setDescription}
-          onFocus={() => setDescriptionFocused(true)}
-          onBlur={() => {
-            setDescriptionFocused(false);
-            setDescriptionFetchToken((token) => token + 1);
-          }}
           placeholder="What needs to be done? Include any details contractors should know…"
           placeholderTextColor={colors.muted}
           multiline
@@ -373,8 +422,6 @@ export default function PostJobScreen({
           title={title}
           workType={workType}
           description={description}
-          fetchToken={descriptionFetchToken}
-          hidden={descriptionFocused}
           onAppend={(line) =>
             setDescription((prev) => {
               const trimmed = prev.trim();
@@ -386,13 +433,28 @@ export default function PostJobScreen({
 
         <Text style={local.fieldLabel}>Photos</Text>
         <Text style={local.fieldHint}>
-          Optional — up to {MAX_PHOTOS} photos help contractors understand the job.
+          Optional — reference photos and before/after scope images help contractors understand the job.
         </Text>
+
+        <ScopeComparisonDraftList
+          items={scopeComparisons}
+          onRemove={(id) => setScopeComparisons((prev) => prev.filter((s) => s.id !== id))}
+        />
 
         <View style={local.photoRow}>
           {photos.map((photo) => (
             <View key={photo.id} style={local.photoWrap}>
               <Image source={{ uri: photo.previewUri }} style={local.photo} />
+              <JobPhotoAiEditButton
+                disabled={uploading || busy || !photo.fileUrl}
+                onPress={() =>
+                  setAiEditTarget({
+                    id: photo.id,
+                    previewUri: photo.previewUri,
+                    fileUrl: photo.fileUrl,
+                  })
+                }
+              />
               <TouchableOpacity
                 onPress={() => setPhotos((prev) => prev.filter((p) => p.id !== photo.id))}
                 style={local.photoRemove}
@@ -640,6 +702,14 @@ export default function PostJobScreen({
         onChange={onDatePicked}
       />
     ) : null}
+
+    <JobPhotoAiEditModal
+      visible={aiEditTarget != null}
+      target={aiEditTarget}
+      onClose={() => setAiEditTarget(null)}
+      resolveSourceKey={resolvePhotoSourceKey}
+      onApply={applyScopeComparison}
+    />
   </>
   );
 }
