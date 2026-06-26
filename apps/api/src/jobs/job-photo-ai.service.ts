@@ -114,9 +114,10 @@ export class JobPhotoAiService {
     token: string,
     input: Record<string, unknown>,
   ): Promise<string> {
-    const waitSeconds = Number(this.config.get('AI_PHOTO_EDIT_WAIT_SECONDS') ?? 120);
+    const totalWaitSeconds = Number(this.config.get('AI_PHOTO_EDIT_WAIT_SECONDS') ?? 120);
+    const syncWaitSeconds = Math.min(60, Math.max(1, totalWaitSeconds));
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), waitSeconds * 1000);
+    const timeout = setTimeout(() => controller.abort(), totalWaitSeconds * 1000);
 
     try {
       const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
@@ -124,18 +125,13 @@ export class JobPhotoAiService {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
-          Prefer: `wait=${waitSeconds}`,
+          Prefer: `wait=${syncWaitSeconds}`,
         },
         body: JSON.stringify({ input }),
         signal: controller.signal,
       });
 
-      const payload = (await res.json()) as {
-        error?: string;
-        detail?: string;
-        status?: string;
-        output?: string | string[] | null;
-      };
+      let payload = (await res.json()) as ReplicatePredictionPayload;
 
       if (!res.ok) {
         this.logger.warn(`Replicate error ${res.status}: ${JSON.stringify(payload)}`);
@@ -145,12 +141,7 @@ export class JobPhotoAiService {
         });
       }
 
-      if (payload.status && payload.status !== 'succeeded') {
-        throw new ServiceUnavailableException({
-          code: 'AI_PHOTO_EDIT_FAILED',
-          message: payload.error || 'AI photo edit did not complete. Try again.',
-        });
-      }
+      payload = await this.waitForReplicatePrediction(payload, token, controller.signal);
 
       const output = payload.output;
       const url = Array.isArray(output) ? output[0] : output;
@@ -179,4 +170,80 @@ export class JobPhotoAiService {
       clearTimeout(timeout);
     }
   }
+
+  private async waitForReplicatePrediction(
+    initial: ReplicatePredictionPayload,
+    token: string,
+    signal: AbortSignal,
+  ): Promise<ReplicatePredictionPayload> {
+    let payload = initial;
+    const pollUrl =
+      payload.urls?.get ??
+      (payload.id ? `https://api.replicate.com/v1/predictions/${payload.id}` : null);
+
+    while (payload.status === 'starting' || payload.status === 'processing') {
+      if (!pollUrl) {
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_FAILED',
+          message: payload.error || 'AI photo edit did not complete. Try again.',
+        });
+      }
+
+      await this.sleep(1500, signal);
+
+      const res = await fetch(pollUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal,
+      });
+      payload = (await res.json()) as ReplicatePredictionPayload;
+
+      if (!res.ok) {
+        this.logger.warn(`Replicate poll error ${res.status}: ${JSON.stringify(payload)}`);
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_FAILED',
+          message: payload.detail || payload.error || 'AI photo edit failed. Try again.',
+        });
+      }
+    }
+
+    if (payload.status === 'failed' || payload.status === 'canceled') {
+      throw new ServiceUnavailableException({
+        code: 'AI_PHOTO_EDIT_FAILED',
+        message: payload.error || 'AI photo edit did not complete. Try again.',
+      });
+    }
+
+    if (payload.status !== 'succeeded') {
+      throw new ServiceUnavailableException({
+        code: 'AI_PHOTO_EDIT_FAILED',
+        message: payload.error || 'AI photo edit did not complete. Try again.',
+      });
+    }
+
+    return payload;
+  }
+
+  private sleep(ms: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new DOMException('Aborted', 'AbortError'));
+        return;
+      }
+      const timer = setTimeout(resolve, ms);
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(new DOMException('Aborted', 'AbortError'));
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
+  }
+}
+
+interface ReplicatePredictionPayload {
+  id?: string;
+  error?: string;
+  detail?: string;
+  status?: string;
+  output?: string | string[] | null;
+  urls?: { get?: string };
 }
