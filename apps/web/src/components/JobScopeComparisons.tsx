@@ -71,12 +71,12 @@ export function ScopeComparisonDraftList({ items, onRemove }: ScopeComparisonDra
             <div className="scope-comparison-half">
               <span className="scope-comparison-label">Before</span>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.beforePreview} alt="Before" className="scope-comparison-img" />
+              <img src={resolveMediaUrl(item.beforeKey)} alt="Before" className="scope-comparison-img" />
             </div>
             <div className="scope-comparison-half">
               <span className="scope-comparison-label">After (planned)</span>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.afterPreview} alt="After planned" className="scope-comparison-img" />
+              <img src={resolveMediaUrl(item.afterKey)} alt="After planned" className="scope-comparison-img" />
             </div>
             <button type="button" className="scope-comparison-remove" onClick={() => onRemove(item.id)}>
               Remove

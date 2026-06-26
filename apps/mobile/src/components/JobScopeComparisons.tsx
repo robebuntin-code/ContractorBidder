@@ -66,11 +66,11 @@ export function ScopeComparisonDraftList({
           <View style={local.row}>
             <View style={local.half}>
               <Text style={local.label}>Before</Text>
-              <RemotePhoto uri={item.beforePreview} style={local.img} containerStyle={local.imgWrap} />
+              <RemotePhoto uri={resolveMediaUrl(item.beforeKey)} style={local.img} containerStyle={local.imgWrap} />
             </View>
             <View style={local.half}>
               <Text style={local.label}>After (planned)</Text>
-              <RemotePhoto uri={item.afterPreview} style={local.img} containerStyle={local.imgWrap} />
+              <RemotePhoto uri={resolveMediaUrl(item.afterKey)} style={local.img} containerStyle={local.imgWrap} />
             </View>
           </View>
           <TouchableOpacity onPress={() => onRemove(item.id)} style={local.removeBtn}>

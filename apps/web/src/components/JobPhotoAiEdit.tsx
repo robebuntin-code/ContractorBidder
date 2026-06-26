@@ -93,7 +93,7 @@ export function JobPhotoAiEditModal({
     onApply(target.id, {
       beforeKey,
       afterKey: editedKey,
-      beforePreview: target.previewUrl,
+      beforePreview: resolveMediaUrl(beforeKey),
       afterPreview: editedPreview,
     });
     onClose();
