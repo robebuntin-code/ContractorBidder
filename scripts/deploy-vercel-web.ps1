@@ -44,7 +44,7 @@ $prev = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 & npx --yes vercel@latest env rm NEXT_PUBLIC_API_URL production --yes 2>&1 | Out-Null
 $ErrorActionPreference = $prev
-$ApiUrl | Invoke-Vercel env add NEXT_PUBLIC_API_URL production
+Invoke-Vercel env add NEXT_PUBLIC_API_URL production --force --value $ApiUrl
 
 Write-Host 'Deploying to production...'
 Invoke-Vercel deploy --prod --yes
