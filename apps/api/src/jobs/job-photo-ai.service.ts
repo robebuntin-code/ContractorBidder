@@ -57,7 +57,7 @@ export class JobPhotoAiService {
       prompt: dto.prompt.trim(),
       input_image: inputImageUrl,
       aspect_ratio: 'match_input_image',
-      output_format: 'jpeg',
+      output_format: 'jpg',
     });
 
     const imageRes = await fetch(outputUrl);
