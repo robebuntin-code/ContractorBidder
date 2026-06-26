@@ -22,6 +22,10 @@ import { extractMediaKey, resolveMediaUrl } from './mediaUrl';
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://localhost:4000/api/v1';
 
+const DEFAULT_TIMEOUT_MS = 10_000;
+/** FLUX edits on Replicate often take 30–120s; stay above server AI_PHOTO_EDIT_WAIT_SECONDS. */
+const AI_PHOTO_EDIT_TIMEOUT_MS = 150_000;
+
 const ACCESS_KEY = 'cb_access';
 const REFRESH_KEY = 'cb_refresh';
 
@@ -80,27 +84,32 @@ async function tryRefreshAccessToken(): Promise<string | null> {
 
 export async function apiRequest<T>(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit & { timeoutMs?: number } = {},
   retried = false,
 ): Promise<T> {
-  const headers = new Headers(options.headers);
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options;
+  const headers = new Headers(fetchOptions.headers);
   headers.set('Content-Type', 'application/json');
   const access = tokenStore.access;
   if (access) headers.set('Authorization', `Bearer ${access}`);
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers,
       signal: controller.signal,
     });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Request timed out. Is the API running on port 4000?');
+      throw new Error(
+        timeoutMs > DEFAULT_TIMEOUT_MS
+          ? 'Image generation is taking longer than expected. Wait a moment and try again.'
+          : 'Request timed out. Check your connection and try again.',
+      );
     }
     throw new Error('Could not reach the API. Run npm run api and try again.');
   } finally {
@@ -134,7 +143,10 @@ export async function apiRequest<T>(
   return res.json() as Promise<T>;
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit & { timeoutMs?: number } = {},
+): Promise<T> {
   return apiRequest<T>(path, options);
 }
 
@@ -175,6 +187,7 @@ export const api = {
     request<{ key: string }>('/jobs/photo-edit', {
       method: 'POST',
       body: JSON.stringify({ sourceKey, prompt }),
+      timeoutMs: AI_PHOTO_EDIT_TIMEOUT_MS,
     }),
 
   searchJobs: (params: {

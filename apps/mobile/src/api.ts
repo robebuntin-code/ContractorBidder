@@ -170,6 +170,9 @@ export interface NotificationItem {
   createdAt: string;
 }
 
+const DEFAULT_TIMEOUT_MS = 12_000;
+const AI_PHOTO_EDIT_TIMEOUT_MS = 150_000;
+
 let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null): void {
@@ -233,23 +236,32 @@ async function tryRefreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit & { timeoutMs?: number } = {},
+  retried = false,
+): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options;
   const headers: Record<string, string> = {};
   const token = await resolveAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  Object.assign(headers, (options.headers as Record<string, string>) ?? {});
-  if (options.body != null && !headers['Content-Type'] && !headers['content-type']) {
+  Object.assign(headers, (fetchOptions.headers as Record<string, string>) ?? {});
+  if (fetchOptions.body != null && !headers['Content-Type'] && !headers['content-type']) {
     headers['Content-Type'] = 'application/json';
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...options, headers, signal: controller.signal });
+    res = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers, signal: controller.signal });
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
-      throw new Error(`Server timed out. Is the API running and reachable at ${API_URL}?`);
+      throw new Error(
+        timeoutMs > DEFAULT_TIMEOUT_MS
+          ? 'Image generation is taking longer than expected. Wait a moment and try again.'
+          : `Server timed out. Is the API running and reachable at ${API_URL}?`,
+      );
     }
     throw new Error(`Can't reach the server at ${API_URL}. Is the API running on the same network?`);
   } finally {
@@ -461,6 +473,7 @@ export const api = {
     request<{ key: string }>('/jobs/photo-edit', {
       method: 'POST',
       body: JSON.stringify({ sourceKey, prompt }),
+      timeoutMs: AI_PHOTO_EDIT_TIMEOUT_MS,
     }),
 };
 
