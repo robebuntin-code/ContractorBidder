@@ -48,14 +48,14 @@ export class JobPhotoAiService {
     const sourceKey = this.media.normalizeStoredUrl(dto.sourceKey);
     this.assertOwnedSourceKey(user.userId, sourceKey);
 
-    const inputImageUrl = this.publicMediaUrl(sourceKey, req);
+    const inputImage = await this.resolveInputImage(sourceKey, req);
     const model =
       this.config.get<string>('AI_PHOTO_EDIT_MODEL')?.trim() ||
       'black-forest-labs/flux-kontext-pro';
 
     const outputUrl = await this.runReplicate(model, token, {
       prompt: dto.prompt.trim(),
-      input_image: inputImageUrl,
+      input_image: inputImage,
       aspect_ratio: 'match_input_image',
       output_format: 'jpg',
     });
@@ -92,7 +92,49 @@ export class JobPhotoAiService {
     }
   }
 
-  /** URL Replicate can fetch — must be public HTTPS. */
+  /** Load source bytes and send inline to Replicate (avoids public URL fetch failures). */
+  private async resolveInputImage(sourceKey: string, req?: Request): Promise<string> {
+    let body: Buffer;
+    let contentType: string;
+
+    if (this.config.get<string>('MEDIA_S3_BUCKET')) {
+      const url = this.publicMediaUrl(sourceKey, req);
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_SOURCE_MISSING',
+          message:
+            'Could not find the uploaded photo. Remove it, upload again, then try Generate preview.',
+        });
+      }
+      body = Buffer.from(await res.arrayBuffer());
+      contentType = res.headers.get('content-type') ?? 'image/jpeg';
+    } else {
+      try {
+        const loaded = await this.devMedia.load(sourceKey);
+        body = loaded.body;
+        contentType = loaded.contentType;
+      } catch {
+        throw new ServiceUnavailableException({
+          code: 'AI_PHOTO_EDIT_SOURCE_MISSING',
+          message:
+            'Could not find the uploaded photo. Remove it, upload again, then try Generate preview.',
+        });
+      }
+    }
+
+    if (body.length < 64) {
+      throw new BadRequestException({
+        code: 'AI_PHOTO_EDIT_SOURCE_EMPTY',
+        message: 'The uploaded photo appears empty. Try uploading again.',
+      });
+    }
+
+    const mime = contentType.startsWith('image/') ? contentType.split(';')[0].trim() : 'image/jpeg';
+    return `data:${mime};base64,${body.toString('base64')}`;
+  }
+
+  /** Public HTTPS URL for remote fetchers (S3 mode). */
   private publicMediaUrl(sourceKey: string, req?: Request): string {
     const configured = this.config.get<string>('MEDIA_PUBLIC_BASE_URL')?.trim();
     if (configured) {
@@ -137,7 +179,7 @@ export class JobPhotoAiService {
         this.logger.warn(`Replicate error ${res.status}: ${JSON.stringify(payload)}`);
         throw new ServiceUnavailableException({
           code: 'AI_PHOTO_EDIT_FAILED',
-          message: payload.detail || payload.error || 'AI photo edit failed. Try again.',
+          message: this.replicateErrorMessage(payload),
         });
       }
 
@@ -209,7 +251,7 @@ export class JobPhotoAiService {
     if (payload.status === 'failed' || payload.status === 'canceled') {
       throw new ServiceUnavailableException({
         code: 'AI_PHOTO_EDIT_FAILED',
-        message: payload.error || 'AI photo edit did not complete. Try again.',
+        message: this.replicateErrorMessage(payload),
       });
     }
 
@@ -221,6 +263,14 @@ export class JobPhotoAiService {
     }
 
     return payload;
+  }
+
+  private replicateErrorMessage(payload: ReplicatePredictionPayload): string {
+    const raw = payload.detail || payload.error || '';
+    if (/404 client error/i.test(raw) || /not found for url/i.test(raw)) {
+      return 'Could not find the uploaded photo. Remove it, upload again, then try Generate preview.';
+    }
+    return raw || 'AI photo edit did not complete. Try again.';
   }
 
   private sleep(ms: number, signal: AbortSignal): Promise<void> {
