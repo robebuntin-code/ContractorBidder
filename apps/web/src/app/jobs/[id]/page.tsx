@@ -373,28 +373,14 @@ export default function JobDetailPage() {
       )}
 
       {job.photos.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            overflowX: 'auto',
-            marginTop: 12,
-            paddingBottom: 4,
-          }}
-        >
+        <div className="job-detail-photos">
           {job.photos.map((uri) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={uri}
               src={resolveMediaUrl(uri)}
               alt="Job photo"
-              style={{
-                width: 220,
-                height: 150,
-                borderRadius: 12,
-                objectFit: 'cover',
-                flexShrink: 0,
-              }}
+              className="job-detail-photo"
             />
           ))}
         </div>
