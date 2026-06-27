@@ -217,12 +217,17 @@ export default function NewJobPage() {
 
   return (
     <div className="post-job-page">
-      <p className="post-job-lead">
-        Share what you need done. Your exact address stays private until you accept a bid.
-      </p>
+      <header className="post-job-header">
+        <h1 className="post-job-title">Post a job</h1>
+        <p className="post-job-lead">
+          Share what you need done. Your exact address stays private until you accept a bid.
+        </p>
+      </header>
 
       <form className="post-job-form" onSubmit={(e) => void submit(e)}>
-        <section className="post-job-block">
+        <div className="post-job-layout">
+          <div className="post-job-main">
+            <section className="post-job-block">
           <label className="field-label" htmlFor="workType">
             Type of work
           </label>
@@ -285,7 +290,7 @@ export default function NewJobPage() {
             <span className="post-job-optional">Optional</span>
           </div>
           <p className="post-job-micro-hint">
-            Add reference photos. Tap <strong>AI scope</strong> on a photo to create a before/after vision.
+            Add reference photos. Use <strong>AI scope</strong> on a photo to create a before/after vision.
           </p>
 
           <ScopeComparisonDraftList
@@ -327,9 +332,12 @@ export default function NewJobPage() {
             onChange={(e) => void addPhoto(e)}
             disabled={uploading || busy}
           />
-        </section>
+            </section>
+          </div>
 
-        <section className="post-job-block">
+          <aside className="post-job-aside">
+            <div className="post-job-aside-inner">
+              <section className="post-job-block">
           <p className="post-job-block-title">When</p>
           <div className="post-job-segment" role="group" aria-label="Timeframe">
             <button
@@ -416,9 +424,9 @@ export default function NewJobPage() {
           >
             {locating ? 'Getting location…' : 'Use my current location'}
           </button>
-        </section>
+              </section>
 
-        <details className="post-job-details">
+              <details className="post-job-details">
           <summary className="post-job-details-summary">
             <span>Budget &amp; phone</span>
             <span className="post-job-optional">Optional</span>
@@ -462,19 +470,22 @@ export default function NewJobPage() {
               autoComplete="tel"
             />
           </div>
-        </details>
+              </details>
 
-        {error ? (
-          <div className="error-box">
-            <p className="error" style={{ margin: 0 }}>
-              {error}
-            </p>
-          </div>
-        ) : null}
+              {error ? (
+                <div className="error-box post-job-error">
+                  <p className="error" style={{ margin: 0 }}>
+                    {error}
+                  </p>
+                </div>
+              ) : null}
 
-        <button type="submit" className="btn-primary btn-block post-job-submit" disabled={busy || uploading}>
-          {busy ? 'Posting…' : 'Post job'}
-        </button>
+              <button type="submit" className="btn-primary btn-block post-job-submit" disabled={busy || uploading}>
+                {busy ? 'Posting…' : 'Post job'}
+              </button>
+            </div>
+          </aside>
+        </div>
       </form>
 
       <JobPhotoAiEditModal
