@@ -186,16 +186,16 @@ export default function ProfilePage() {
   const [hasProfile, setHasProfile] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const navItems: { id: ProfileSection; label: string }[] = isContractor
+  const navItems: { id: ProfileSection; label: string; shortLabel: string }[] = isContractor
     ? [
-        { id: 'personal', label: 'Personal info' },
-        { id: 'business', label: 'Business' },
-        { id: 'service', label: 'Service area' },
-        { id: 'account', label: 'Account' },
+        { id: 'personal', label: 'Personal info', shortLabel: 'Personal' },
+        { id: 'business', label: 'Business', shortLabel: 'Business' },
+        { id: 'service', label: 'Service area', shortLabel: 'Service' },
+        { id: 'account', label: 'Account', shortLabel: 'Account' },
       ]
     : [
-        { id: 'personal', label: 'Personal info' },
-        { id: 'account', label: 'Account' },
+        { id: 'personal', label: 'Personal info', shortLabel: 'Personal' },
+        { id: 'account', label: 'Account', shortLabel: 'Account' },
       ];
 
   const sectionTitle =
@@ -443,16 +443,22 @@ export default function ProfilePage() {
     <div className="account-shell">
       <div className="account-layout">
         <nav className="account-sidebar" aria-label="Account sections">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`account-nav-item${activeSection === item.id ? ' active' : ''}`}
-              onClick={() => switchSection(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+          <div
+            className="account-nav-track"
+            style={{ ['--account-nav-count' as string]: navItems.length }}
+          >
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`account-nav-item${activeSection === item.id ? ' active' : ''}`}
+                onClick={() => switchSection(item.id)}
+              >
+                <span className="account-nav-label account-nav-label-full">{item.label}</span>
+                <span className="account-nav-label account-nav-label-short">{item.shortLabel}</span>
+              </button>
+            ))}
+          </div>
         </nav>
 
         {loading ? (
