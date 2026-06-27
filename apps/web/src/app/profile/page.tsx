@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api, uploadToSignedUrl } from '@/lib/api';
-import { getBestCurrentPosition, reverseGeocode } from '@/lib/geocode';
+import { geocodeAddress, getBestCurrentPosition, reverseGeocode } from '@/lib/geocode';
+import { normalizeAddressDisplay } from '@/lib/addressFormat';
 import { extractMediaKey, resolveMediaUrl } from '@/lib/mediaUrl';
 import { formatPhoneDisplay, formatPhoneInput, phoneDigits, phoneForStorage } from '@/lib/phoneFormat';
 import {
@@ -193,8 +194,10 @@ export default function ProfilePage() {
   const [radiusMiles, setRadiusMiles] = useState<(typeof RADIUS_MILES)[number]>(25);
   const [baseLat, setBaseLat] = useState<number | null>(null);
   const [baseLng, setBaseLng] = useState<number | null>(null);
+  const [serviceAreaAddress, setServiceAreaAddress] = useState('');
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [serviceAreaGeocoding, setServiceAreaGeocoding] = useState(false);
   const [addressLocating, setAddressLocating] = useState(false);
   const [googleReviewsUrl, setGoogleReviewsUrl] = useState('');
   const [status, setStatus] = useState<string | null>(null);
@@ -235,11 +238,14 @@ export default function ProfilePage() {
       const { lat, lng } = await getBestCurrentPosition();
       setBaseLat(lat);
       setBaseLng(lng);
-      setLocationLabel('Your current location');
+      const reversed = await reverseGeocode(lat, lng);
+      const label = normalizeAddressDisplay(reversed.label);
+      setServiceAreaAddress(label);
+      setLocationLabel(label);
       return true;
     } catch {
       setLocationLabel('Could not read location');
-      setError('Could not read your location. Try again or enter a business address.');
+      setError('Could not read your location. Enter an address below instead.');
       return false;
     } finally {
       setLocating(false);
@@ -284,7 +290,23 @@ export default function ProfilePage() {
       if (profile.baseLat != null && profile.baseLng != null) {
         setBaseLat(profile.baseLat);
         setBaseLng(profile.baseLng);
-        setLocationLabel('Saved service area');
+        try {
+          const reversed = await reverseGeocode(profile.baseLat, profile.baseLng);
+          const label = normalizeAddressDisplay(reversed.label);
+          setServiceAreaAddress(label);
+          setLocationLabel(label);
+        } catch {
+          const fallback = profile.businessAddress?.trim()
+            ? normalizeAddressDisplay(profile.businessAddress)
+            : 'Saved service area';
+          setServiceAreaAddress(fallback);
+          setLocationLabel(fallback);
+        }
+      } else {
+        setBaseLat(null);
+        setBaseLng(null);
+        setServiceAreaAddress('');
+        setLocationLabel(null);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
@@ -327,13 +349,60 @@ export default function ProfilePage() {
       const { lat, lng } = await getBestCurrentPosition();
       setBaseLat(lat);
       setBaseLng(lng);
-      setLocationLabel('Your current location');
-      setBusinessAddress((await reverseGeocode(lat, lng)).label);
+      const label = normalizeAddressDisplay((await reverseGeocode(lat, lng)).label);
+      setServiceAreaAddress(label);
+      setLocationLabel(label);
+      setBusinessAddress(label);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read your location.');
     } finally {
       setAddressLocating(false);
     }
+  }
+
+  async function applyServiceAreaAddress() {
+    const trimmed = normalizeAddressDisplay(serviceAreaAddress);
+    if (trimmed.length < 3) {
+      setError('Enter an address with city and state for your service area.');
+      return;
+    }
+    setServiceAreaGeocoding(true);
+    setError(null);
+    try {
+      const result = await geocodeAddress(trimmed);
+      const label = normalizeAddressDisplay(result.label);
+      setBaseLat(result.lat);
+      setBaseLng(result.lng);
+      setServiceAreaAddress(label);
+      setLocationLabel(label);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not look up that address.');
+    } finally {
+      setServiceAreaGeocoding(false);
+    }
+  }
+
+  async function resolveServiceAreaForSave(): Promise<{ lat: number; lng: number } | null> {
+    const trimmed = normalizeAddressDisplay(serviceAreaAddress);
+    if (trimmed.length >= 3) {
+      try {
+        const result = await geocodeAddress(trimmed);
+        const label = normalizeAddressDisplay(result.label);
+        setBaseLat(result.lat);
+        setBaseLng(result.lng);
+        setServiceAreaAddress(label);
+        setLocationLabel(label);
+        return { lat: result.lat, lng: result.lng };
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Could not look up that address.');
+        return null;
+      }
+    }
+    if (baseLat != null && baseLng != null) {
+      return { lat: baseLat, lng: baseLng };
+    }
+    setError('Enter your service area address or use GPS location before saving.');
+    return null;
   }
 
   async function onLogoSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -401,10 +470,6 @@ export default function ProfilePage() {
 
   async function saveContractor(e: React.FormEvent) {
     e.preventDefault();
-    if (baseLat == null || baseLng == null) {
-      setError('Set your service area location before saving.');
-      return;
-    }
     if (serviceTypes.length === 0) {
       setError('Select at least one trade you offer.');
       return;
@@ -418,6 +483,9 @@ export default function ProfilePage() {
     setStatus(null);
     setError(null);
     try {
+      const coords = await resolveServiceAreaForSave();
+      if (!coords) return;
+
       await api.updateMe({ phone: phoneForStorage(phone) });
       await api.upsertProfile({
         companyName: companyName.trim() || undefined,
@@ -426,12 +494,12 @@ export default function ProfilePage() {
         description: description.trim() || undefined,
         serviceTypes,
         serviceRadiusKm: radiusMiles * 1.60934,
-        baseLat,
-        baseLng,
+        baseLat: coords.lat,
+        baseLng: coords.lng,
         googleReviewsUrl: googleReviewsUrl.trim() || undefined,
       });
       setHasProfile(true);
-      setLocationLabel('Saved service area');
+      setLocationLabel(serviceAreaAddress.trim() || 'Saved service area');
       setStatus('Profile saved');
       setExpandedField(null);
       await refreshAuth();
@@ -458,9 +526,14 @@ export default function ProfilePage() {
           .map((v) => SERVICE_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? v)
           .join(', ')
       : '';
+  const serviceAreaBusy = locating || serviceAreaGeocoding;
   const areaCenterDisplay = locating
     ? 'Getting location…'
-    : locationLabel ?? (baseLat != null ? 'Location set' : 'Not set yet');
+    : serviceAreaGeocoding
+      ? 'Looking up address…'
+      : locationLabel?.trim() ||
+        serviceAreaAddress.trim() ||
+        (baseLat != null ? 'Location set' : 'Not set yet');
 
   const showSave = activeSection !== 'account';
 
@@ -739,22 +812,54 @@ export default function ProfilePage() {
 
                 <ProfileFieldRow
                   label="Area center"
-                  value={areaCenterDisplay}
+                  value={areaCenterDisplay.replace(/\n/g, ', ')}
                   placeholder="Set your service area center"
                   expanded={expandedField === 'location'}
                   onToggle={() => toggleField('location')}
                 >
                   <p className="field-hint">
-                    Used to match you with nearby jobs. Your exact location is not shown publicly.
+                    Used to match you with nearby jobs and prefill Find Jobs. Your exact location is not
+                    shown publicly.
                   </p>
-                  <button
-                    type="button"
-                    className="address-btn secondary"
-                    disabled={locating}
-                    onClick={() => void resolveLocation()}
-                  >
-                    {locating ? 'Getting location…' : baseLat != null ? 'Update GPS location' : 'Set GPS location'}
-                  </button>
+                  <label className="field-label" htmlFor="service-area-address">
+                    Service area address
+                  </label>
+                  <input
+                    id="service-area-address"
+                    value={serviceAreaAddress}
+                    onChange={(e) => setServiceAreaAddress(e.target.value)}
+                    placeholder="123 Main St, Atlanta, GA"
+                    disabled={serviceAreaBusy}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void applyServiceAreaAddress();
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <div className="address-actions">
+                    <button
+                      type="button"
+                      className="address-btn secondary"
+                      disabled={serviceAreaBusy}
+                      onClick={() => void resolveLocation()}
+                    >
+                      {locating
+                        ? 'Getting location…'
+                        : baseLat != null
+                          ? 'Update GPS location'
+                          : 'Set GPS location'}
+                    </button>
+                    <button
+                      type="button"
+                      className="address-btn primary"
+                      disabled={serviceAreaBusy}
+                      onClick={() => void applyServiceAreaAddress()}
+                    >
+                      {serviceAreaGeocoding ? 'Looking up…' : 'Set location'}
+                    </button>
+                  </div>
                 </ProfileFieldRow>
               </div>
             ) : null}
