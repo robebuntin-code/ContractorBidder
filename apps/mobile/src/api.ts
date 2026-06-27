@@ -170,6 +170,12 @@ export interface NotificationItem {
   createdAt: string;
 }
 
+export interface GeocodeResult {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 const DEFAULT_TIMEOUT_MS = 12_000;
 const AI_PHOTO_EDIT_TIMEOUT_MS = 150_000;
 
@@ -475,6 +481,15 @@ export const api = {
       body: JSON.stringify({ sourceKey, prompt }),
       timeoutMs: AI_PHOTO_EDIT_TIMEOUT_MS,
     }),
+
+  geocodeAddress: (address: string) =>
+    request<GeocodeResult>('/geocode/forward', {
+      method: 'POST',
+      body: JSON.stringify({ address }),
+    }),
+
+  reverseGeocode: (lat: number, lng: number) =>
+    request<GeocodeResult>(`/geocode/reverse?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`),
 };
 
 /**

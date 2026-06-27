@@ -103,13 +103,28 @@ function parseUsHints(address: string): { state?: string; zip?: string } {
   return { zip };
 }
 
+export interface GeocodeResult {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
+function normalizeAddressLabel(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\n+/g, ', ')
+    .replace(/,\s*/g, ', ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function formatAddress(addr: NominatimAddress): string {
   const line1 = [addr.house_number, addr.road].filter(Boolean).join(' ');
   const city = addr.city ?? addr.town ?? addr.village ?? addr.county ?? '';
   const state = addr.state ?? '';
   const zip = addr.postcode?.slice(0, 5) ?? '';
   const statePart = [state, zip].filter(Boolean).join(' ');
-  return [line1, city, statePart].filter(Boolean).join(', ');
+  return normalizeAddressLabel([line1, city, statePart].filter(Boolean).join(', '));
 }
 
 function scoreHit(hit: NominatimHit, hints: { state?: string; zip?: string }): number {
@@ -179,7 +194,7 @@ export class GeocodingService {
     return {
       lat: Number(best.lat),
       lng: Number(best.lon),
-      label: label || trimmed,
+      label: normalizeAddressLabel(label || trimmed),
     };
   }
 
@@ -209,7 +224,7 @@ export class GeocodingService {
     return {
       lat,
       lng,
-      label: formatAddress(data.address) || data.display_name,
+      label: normalizeAddressLabel(formatAddress(data.address) || data.display_name),
     };
   }
 }

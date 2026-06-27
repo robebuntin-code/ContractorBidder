@@ -20,7 +20,7 @@ import SearchRadiusMap from '../components/SearchRadiusMap';
 import { colors, formatBudget, formatDistanceMiles, formatWorkType, SERVICE_TYPE_OPTIONS, styles } from '../theme';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FindStackParamList } from '../navTypes';
-import { formatGeocodedAddress } from '../utils/addressFormat';
+import { formatGeocodedAddress, normalizeAddressDisplay } from '../utils/addressFormat';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import RemotePhoto from '../components/RemotePhoto';
 
@@ -107,13 +107,19 @@ export default function FindJobsScreen({ navigation }: NativeStackScreenProps<Fi
 
       let label = '';
       try {
-        const results = await Location.reverseGeocodeAsync({
-          latitude: profile.baseLat,
-          longitude: profile.baseLng,
-        });
-        if (results.length) label = formatGeocodedAddress(results[0]);
+        label = normalizeAddressDisplay(
+          (await api.reverseGeocode(profile.baseLat, profile.baseLng)).label,
+        );
       } catch {
-        /* ignore reverse geocode failures */
+        try {
+          const results = await Location.reverseGeocodeAsync({
+            latitude: profile.baseLat,
+            longitude: profile.baseLng,
+          });
+          if (results.length) label = formatGeocodedAddress(results[0]);
+        } catch {
+          /* ignore reverse geocode failures */
+        }
       }
       if (!label) label = 'Your service area center';
 
@@ -143,17 +149,23 @@ export default function FindJobsScreen({ navigation }: NativeStackScreenProps<Fi
     const pos = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
     });
-    const results = await Location.reverseGeocodeAsync({
-      latitude: pos.coords.latitude,
-      longitude: pos.coords.longitude,
-    });
-    if (results.length) {
-      setAddressQuery(formatGeocodedAddress(results[0]));
+    let label = '';
+    try {
+      label = normalizeAddressDisplay(
+        (await api.reverseGeocode(pos.coords.latitude, pos.coords.longitude)).label,
+      );
+    } catch {
+      const results = await Location.reverseGeocodeAsync({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+      if (results.length) label = formatGeocodedAddress(results[0]);
     }
+    if (label) setAddressQuery(label);
     setCenter({
       lat: pos.coords.latitude,
       lng: pos.coords.longitude,
-      label: 'Your current location',
+      label: label || 'Your current location',
       source: 'device',
     });
   }, []);
@@ -190,7 +202,7 @@ export default function FindJobsScreen({ navigation }: NativeStackScreenProps<Fi
   }, [loadProfileSearchArea, setSearchCenterFromDevice]);
 
   const applyAddress = useCallback(async () => {
-    const trimmed = addressQuery.trim();
+    const trimmed = normalizeAddressDisplay(addressQuery);
     if (trimmed.length < 3) {
       setError('Enter an address with city and state.');
       return;
@@ -199,19 +211,17 @@ export default function FindJobsScreen({ navigation }: NativeStackScreenProps<Fi
     setGeocoding(true);
     setError(null);
     try {
-      const results = await Location.geocodeAsync(trimmed);
-      if (!results.length) {
-        setError('Address not found. Try adding city and state, e.g. "123 Main St, Brooklyn, NY".');
-        return;
-      }
+      const result = await api.geocodeAddress(trimmed);
+      const label = normalizeAddressDisplay(result.label);
+      setAddressQuery(label);
       setCenter({
-        lat: results[0].latitude,
-        lng: results[0].longitude,
-        label: trimmed,
+        lat: result.lat,
+        lng: result.lng,
+        label,
         source: 'address',
       });
-    } catch {
-      setError('Could not look up that address. Try a more complete address.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not look up that address. Try a more complete address.');
     } finally {
       setGeocoding(false);
     }
