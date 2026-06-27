@@ -13,6 +13,7 @@ import {
   getBestCurrentPosition,
   reverseGeocode,
 } from '@/lib/geocode';
+import { normalizeAddressDisplay } from '@/lib/addressFormat';
 import { SERVICE_TYPE_OPTIONS } from '@/lib/theme';
 
 const JobsMap = dynamic(() => import('@/components/JobsMap'), {
@@ -62,19 +63,28 @@ export default function JobsPage() {
     void api
       .me()
       .then(async (me) => {
-        if (me.homeAddress?.trim()) {
-          setAddressQuery(me.homeAddress.trim());
-          return;
-        }
         if (me.role === 'CONTRACTOR') {
           try {
-            const profile = await api.getContractorProfile(me.id);
+            const profile = await api.myContractorProfile();
+            if (profile.baseLat != null && profile.baseLng != null) {
+              try {
+                const reversed = await reverseGeocode(profile.baseLat, profile.baseLng);
+                setAddressQuery(reversed.label);
+                return;
+              } catch {
+                /* fall back to saved address text */
+              }
+            }
             if (profile.businessAddress?.trim()) {
-              setAddressQuery(profile.businessAddress.trim());
+              setAddressQuery(normalizeAddressDisplay(profile.businessAddress));
+              return;
             }
           } catch {
             /* no profile yet */
           }
+        }
+        if (me.homeAddress?.trim()) {
+          setAddressQuery(normalizeAddressDisplay(me.homeAddress));
         }
       })
       .catch(() => undefined);
@@ -141,7 +151,7 @@ export default function JobsPage() {
   }, [pendingGps, runSearch]);
 
   const applyAddress = useCallback(async () => {
-    const trimmed = addressQuery.trim();
+    const trimmed = normalizeAddressDisplay(addressQuery);
     if (trimmed.length < 3) {
       setError('Enter an address with city and state, e.g. "123 Main St, Atlanta, GA".');
       return;

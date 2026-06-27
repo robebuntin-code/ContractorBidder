@@ -3,6 +3,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
 const USER_AGENT = 'DOJOBID-API/1.0 (contractor marketplace; contact@dojobid.local)';
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const US_STATE_ABBR: Record<string, string> = {
   alabama: 'AL',
   alaska: 'AK',
@@ -103,14 +107,9 @@ function parseUsHints(address: string): { state?: string; zip?: string } {
   return { zip };
 }
 
-export interface GeocodeResult {
-  lat: number;
-  lng: number;
-  label: string;
-}
-
 function normalizeAddressLabel(value: string): string {
   return value
+    .replace(/\u00a0|\u202f/g, ' ')
     .replace(/\r\n/g, '\n')
     .replace(/\n+/g, ', ')
     .replace(/,\s*/g, ', ')
@@ -118,9 +117,32 @@ function normalizeAddressLabel(value: string): string {
     .trim();
 }
 
+function detachGluedCity(line1: string, city: string): { line1: string; city: string } {
+  const trimmedCity = city.trim();
+  if (!line1 || !trimmedCity) return { line1: line1.trim(), city: trimmedCity };
+
+  const glued = line1.match(
+    new RegExp(`^(.+?)(?<![\\s,])${escapeRegExp(trimmedCity)}$`, 'i'),
+  );
+  if (glued) {
+    return {
+      line1: glued[1].trim().replace(/,\s*$/, ''),
+      city: trimmedCity,
+    };
+  }
+
+  return { line1: line1.trim(), city: trimmedCity };
+}
+
 function formatAddress(addr: NominatimAddress): string {
-  const line1 = [addr.house_number, addr.road].filter(Boolean).join(' ');
-  const city = addr.city ?? addr.town ?? addr.village ?? addr.county ?? '';
+  let line1 = [addr.house_number, addr.road].filter(Boolean).join(' ').trim();
+  let city = (addr.city ?? addr.town ?? addr.village ?? '').trim();
+  if (!city && addr.county) {
+    city = addr.county.replace(/\s+County$/i, '').trim();
+  }
+  if (line1 && city) {
+    ({ line1, city } = detachGluedCity(line1, city));
+  }
   const state = addr.state ?? '';
   const zip = addr.postcode?.slice(0, 5) ?? '';
   const statePart = [state, zip].filter(Boolean).join(' ');
@@ -162,7 +184,7 @@ export class GeocodingService {
   }
 
   async forward(address: string): Promise<GeocodeResult> {
-    const trimmed = address.trim();
+    const trimmed = normalizeAddressLabel(address);
     if (trimmed.length < 3) {
       throw new BadRequestException('Please enter a complete address with city and state.');
     }

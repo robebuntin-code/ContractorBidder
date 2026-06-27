@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { normalizeAddressDisplay } from './addressFormat';
 
 export interface GeocodeResult {
   lat: number;
@@ -16,15 +17,17 @@ export interface GpsReading {
 export const MAX_GPS_ACCURACY_METERS = 2000;
 
 export async function geocodeAddress(address: string): Promise<GeocodeResult> {
-  return apiRequest<GeocodeResult>('/geocode/forward', {
+  const result = await apiRequest<GeocodeResult>('/geocode/forward', {
     method: 'POST',
-    body: JSON.stringify({ address }),
+    body: JSON.stringify({ address: normalizeAddressDisplay(address) }),
   });
+  return { ...result, label: normalizeAddressDisplay(result.label) };
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<GeocodeResult> {
   const qs = new URLSearchParams({ lat: String(lat), lng: String(lng) });
-  return apiRequest<GeocodeResult>(`/geocode/reverse?${qs.toString()}`);
+  const result = await apiRequest<GeocodeResult>(`/geocode/reverse?${qs.toString()}`);
+  return { ...result, label: normalizeAddressDisplay(result.label) };
 }
 
 function geolocationErrorMessage(err: GeolocationPositionError): string {
