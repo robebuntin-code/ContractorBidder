@@ -93,6 +93,7 @@ $vars = @{
   AI_JOB_DESCRIPTION_ENABLED = 'true'
   AI_MODEL = 'qwen/qwen-2.5-7b-instruct'
   AI_PHOTO_EDIT_ENABLED = 'true'
+  AI_PHOTO_EDIT_MODEL = 'black-forest-labs/flux-kontext-dev'
   MEDIA_PUBLIC_BASE_URL = 'https://dojobid.com/api/v1/dev-media'
   AWS_REGION = 'us-east-1'
 }

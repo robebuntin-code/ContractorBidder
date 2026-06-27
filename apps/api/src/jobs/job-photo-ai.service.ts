@@ -51,13 +51,14 @@ export class JobPhotoAiService {
     const inputImage = await this.resolveInputImage(sourceKey, req);
     const model =
       this.config.get<string>('AI_PHOTO_EDIT_MODEL')?.trim() ||
-      'black-forest-labs/flux-kontext-pro';
+      'black-forest-labs/flux-kontext-dev';
 
     const outputUrl = await this.runReplicate(model, token, {
       prompt: dto.prompt.trim(),
       input_image: inputImage,
       aspect_ratio: 'match_input_image',
       output_format: 'jpg',
+      output_quality: 85,
     });
 
     const imageRes = await fetch(outputUrl);
