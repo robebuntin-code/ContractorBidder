@@ -54,17 +54,22 @@ export interface ScopeComparisonDraft {
 interface ScopeComparisonDraftListProps {
   items: ScopeComparisonDraft[];
   onRemove: (id: string) => void;
+  compact?: boolean;
 }
 
-export function ScopeComparisonDraftList({ items, onRemove }: ScopeComparisonDraftListProps) {
+export function ScopeComparisonDraftList({ items, onRemove, compact = false }: ScopeComparisonDraftListProps) {
   if (!items.length) return null;
 
   return (
-    <div className="scope-comparisons" style={{ marginTop: 12, marginBottom: 8 }}>
-      <p className="scope-comparisons-title">Scope photos added</p>
-      <p className="field-hint" style={{ marginTop: 4, marginBottom: 10 }}>
-        Contractors will see these before/after pairs on your job posting.
-      </p>
+    <div className={`scope-comparisons${compact ? ' scope-comparisons--compact' : ''}`}>
+      {!compact ? (
+        <>
+          <p className="scope-comparisons-title">Scope photos added</p>
+          <p className="field-hint" style={{ marginTop: 4, marginBottom: 10 }}>
+            Contractors will see these before/after pairs on your job posting.
+          </p>
+        </>
+      ) : null}
       <div className="scope-comparisons-list">
         {items.map((item) => (
           <div key={item.id} className="scope-comparison-card">

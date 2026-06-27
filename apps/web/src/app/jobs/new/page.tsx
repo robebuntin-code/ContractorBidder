@@ -10,7 +10,6 @@ import {
   defaultExactDate,
   defaultFlexibleRange,
   formatDateInputValue,
-  formatJobDate,
   parseDateInput,
   startOfDay,
   timeframeToApi,
@@ -217,15 +216,28 @@ export default function NewJobPage() {
   const todayStr = formatDateInputValue(startOfDay(new Date()));
 
   return (
-    <div>
-      <h1 className="hero-headline">Post a job</h1>
-      <p className="page-subtitle">
-        Describe the work you need. Your exact address stays private until you accept a bid.
+    <div className="post-job-page">
+      <p className="post-job-lead">
+        Share what you need done. Your exact address stays private until you accept a bid.
       </p>
 
-      <form onSubmit={(e) => void submit(e)}>
-        <div className="section">
-          <p className="section-title">Job details</p>
+      <form className="post-job-form" onSubmit={(e) => void submit(e)}>
+        <section className="post-job-block">
+          <label className="field-label" htmlFor="workType">
+            Type of work
+          </label>
+          <select
+            id="workType"
+            className="post-job-select"
+            value={workType}
+            onChange={(e) => setWorkType(e.target.value as WorkType)}
+          >
+            {SERVICE_TYPE_OPTIONS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
 
           <label className="field-label" htmlFor="title">
             Title
@@ -244,15 +256,16 @@ export default function NewJobPage() {
           </label>
           <textarea
             id="description"
-            rows={4}
+            rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What needs to be done? Include any details contractors should know…"
+            placeholder="What needs to be done?"
             required
             minLength={10}
           />
 
           <JobDescriptionSuggestions
+            compact
             title={title}
             workType={workType}
             description={description}
@@ -264,15 +277,23 @@ export default function NewJobPage() {
               })
             }
           />
+        </section>
 
-          <p className="field-label">Photos</p>
-          <p className="field-hint">
-            Optional — reference photos and before/after scope images help contractors understand the job.
+        <section className="post-job-block">
+          <div className="post-job-block-head">
+            <span className="post-job-block-title">Photos</span>
+            <span className="post-job-optional">Optional</span>
+          </div>
+          <p className="post-job-micro-hint">
+            Add reference photos. Tap <strong>AI scope</strong> on a photo to create a before/after vision.
           </p>
+
           <ScopeComparisonDraftList
+            compact
             items={scopeComparisons}
             onRemove={(id) => setScopeComparisons((prev) => prev.filter((s) => s.id !== id))}
           />
+
           <div className="photo-row">
             {photos.map((photo) => (
               <div key={photo.id} className="photo-wrap">
@@ -294,7 +315,7 @@ export default function NewJobPage() {
                 disabled={uploading || busy}
                 onClick={() => photoInputRef.current?.click()}
               >
-                {uploading ? '…' : '+ Add photo'}
+                {uploading ? '…' : '+ Photo'}
               </button>
             )}
           </div>
@@ -306,73 +327,24 @@ export default function NewJobPage() {
             onChange={(e) => void addPhoto(e)}
             disabled={uploading || busy}
           />
-          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            {photos.length}/{MAX_PHOTOS} added
-          </p>
+        </section>
 
-          <p className="field-label">Type of work</p>
-          <div className="chip-wrap">
-            {SERVICE_TYPE_OPTIONS.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                className={`chip${workType === t.value ? ' active' : ''}`}
-                onClick={() => setWorkType(t.value as WorkType)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="section">
-          <p className="section-title">Budget</p>
-          <p className="field-hint">Optional — helps contractors know your price range.</p>
-          <div className="row">
-            <div>
-              <label className="field-label" htmlFor="budgetMin">
-                Min ($)
-              </label>
-              <input
-                id="budgetMin"
-                type="number"
-                value={budgetMin}
-                onChange={(e) => setBudgetMin(e.target.value)}
-                placeholder="500"
-              />
-            </div>
-            <div>
-              <label className="field-label" htmlFor="budgetMax">
-                Max ($)
-              </label>
-              <input
-                id="budgetMax"
-                type="number"
-                value={budgetMax}
-                onChange={(e) => setBudgetMax(e.target.value)}
-                placeholder="1200"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="section">
-          <p className="section-title">Timeframe</p>
-          <p className="field-hint">When would you like the work done?</p>
-          <div className="chip-wrap">
+        <section className="post-job-block">
+          <p className="post-job-block-title">When</p>
+          <div className="post-job-segment" role="group" aria-label="Timeframe">
             <button
               type="button"
-              className={`chip${timeframeMode === 'exact' ? ' active' : ''}`}
+              className={`post-job-segment-btn${timeframeMode === 'exact' ? ' active' : ''}`}
               onClick={() => setTimeframeMode('exact')}
             >
               Exact date
             </button>
             <button
               type="button"
-              className={`chip${timeframeMode === 'flexible' ? ' active' : ''}`}
+              className={`post-job-segment-btn${timeframeMode === 'flexible' ? ' active' : ''}`}
               onClick={() => setTimeframeMode('flexible')}
             >
-              I&apos;m flexible
+              Flexible
             </button>
           </div>
 
@@ -388,92 +360,120 @@ export default function NewJobPage() {
                 value={formatDateInputValue(exactDate)}
                 onChange={(e) => setExactDate(parseDateInput(e.target.value))}
               />
-              <p className="muted" style={{ marginTop: 6 }}>{formatJobDate(exactDate)}</p>
             </>
           ) : (
-            <>
-              <label className="field-label" htmlFor="flexStart">
-                Earliest date
-              </label>
-              <input
-                id="flexStart"
-                type="date"
-                min={todayStr}
-                value={formatDateInputValue(flexibleStart)}
-                onChange={(e) => {
-                  const day = parseDateInput(e.target.value);
-                  setFlexibleStart(day);
-                  if (day > flexibleEnd) setFlexibleEnd(day);
-                }}
-              />
-              <label className="field-label" htmlFor="flexEnd">
-                Latest date
-              </label>
-              <input
-                id="flexEnd"
-                type="date"
-                min={formatDateInputValue(flexibleStart)}
-                value={formatDateInputValue(flexibleEnd)}
-                onChange={(e) => setFlexibleEnd(parseDateInput(e.target.value))}
-              />
-            </>
+            <div className="row">
+              <div>
+                <label className="field-label" htmlFor="flexStart">
+                  From
+                </label>
+                <input
+                  id="flexStart"
+                  type="date"
+                  min={todayStr}
+                  value={formatDateInputValue(flexibleStart)}
+                  onChange={(e) => {
+                    const day = parseDateInput(e.target.value);
+                    setFlexibleStart(day);
+                    if (day > flexibleEnd) setFlexibleEnd(day);
+                  }}
+                />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="flexEnd">
+                  To
+                </label>
+                <input
+                  id="flexEnd"
+                  type="date"
+                  min={formatDateInputValue(flexibleStart)}
+                  value={formatDateInputValue(flexibleEnd)}
+                  onChange={(e) => setFlexibleEnd(parseDateInput(e.target.value))}
+                />
+              </div>
+            </div>
           )}
-        </div>
+        </section>
 
-        <div className="section">
-          <p className="section-title">Location</p>
-          <p className="field-hint">
-            Contractors see an approximate area on the map until you accept a bid.
-          </p>
-          <label className="field-label" htmlFor="address">
+        <section className="post-job-block">
+          <p className="post-job-block-title">Where</p>
+          <label className="sr-only" htmlFor="address">
             Street address
           </label>
           <textarea
             id="address"
-            rows={3}
+            rows={2}
             value={addressText}
             onChange={(e) => setAddressText(e.target.value)}
-            placeholder="123 Main St, Brooklyn, NY 11201"
+            placeholder="Street address, city, state, ZIP"
             required
           />
           <button
             type="button"
-            className="secondary-btn"
+            className="post-job-link-btn"
             disabled={locating || busy}
             onClick={() => void useCurrentLocation()}
           >
-            {locating ? 'Getting location…' : '📍 Use my current location'}
+            {locating ? 'Getting location…' : 'Use my current location'}
           </button>
-        </div>
+        </section>
 
-        <div className="section">
-          <p className="section-title">Contact</p>
-          <p className="field-hint">
-            Optional — shared with your chosen contractor after you accept a bid.
-          </p>
-          <label className="field-label" htmlFor="phone">
-            Phone number
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            value={contactPhone}
-            onChange={(e) => setContactPhone(formatPhoneInput(e.target.value))}
-            placeholder="(555) 555-5555"
-            autoComplete="tel"
-          />
-        </div>
+        <details className="post-job-details">
+          <summary className="post-job-details-summary">
+            <span>Budget &amp; phone</span>
+            <span className="post-job-optional">Optional</span>
+          </summary>
+          <div className="post-job-details-body">
+            <div className="row">
+              <div>
+                <label className="field-label" htmlFor="budgetMin">
+                  Budget min ($)
+                </label>
+                <input
+                  id="budgetMin"
+                  type="number"
+                  value={budgetMin}
+                  onChange={(e) => setBudgetMin(e.target.value)}
+                  placeholder="500"
+                />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="budgetMax">
+                  Budget max ($)
+                </label>
+                <input
+                  id="budgetMax"
+                  type="number"
+                  value={budgetMax}
+                  onChange={(e) => setBudgetMax(e.target.value)}
+                  placeholder="1200"
+                />
+              </div>
+            </div>
+            <label className="field-label" htmlFor="phone">
+              Phone
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(formatPhoneInput(e.target.value))}
+              placeholder="(555) 555-5555"
+              autoComplete="tel"
+            />
+          </div>
+        </details>
 
-        {error && (
+        {error ? (
           <div className="error-box">
             <p className="error" style={{ margin: 0 }}>
               {error}
             </p>
           </div>
-        )}
+        ) : null}
 
-        <button type="submit" className="btn-primary btn-block" disabled={busy || uploading} style={{ marginTop: 8 }}>
-          {busy ? 'Posting job…' : 'Post job'}
+        <button type="submit" className="btn-primary btn-block post-job-submit" disabled={busy || uploading}>
+          {busy ? 'Posting…' : 'Post job'}
         </button>
       </form>
 

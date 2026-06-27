@@ -8,6 +8,7 @@ interface JobDescriptionSuggestionsProps {
   workType: WorkType;
   description: string;
   onAppend: (line: string) => void;
+  compact?: boolean;
 }
 
 export function JobDescriptionSuggestions({
@@ -15,6 +16,7 @@ export function JobDescriptionSuggestions({
   workType,
   description,
   onAppend,
+  compact = false,
 }: JobDescriptionSuggestionsProps) {
   const {
     enabled,
@@ -29,17 +31,17 @@ export function JobDescriptionSuggestions({
   if (!enabled) return null;
 
   return (
-    <div className="description-suggestions-wrap">
+    <div className={`description-suggestions-wrap${compact ? ' description-suggestions-wrap--compact' : ''}`}>
       <button
         type="button"
-        className="btn-outline description-suggest-btn"
+        className={`btn-outline description-suggest-btn${compact ? ' description-suggest-btn--compact' : ''}`}
         onClick={requestSuggestions}
         disabled={loading || !canRequest}
       >
-        {loading ? 'Checking description…' : 'Get description recommendations'}
+        {loading ? 'Checking…' : compact ? 'Suggest details' : 'Get description recommendations'}
       </button>
 
-      {!canRequest ? (
+      {!compact && !canRequest ? (
         <p className="field-hint description-suggest-hint">Add a job title first to get recommendations.</p>
       ) : null}
 
@@ -47,14 +49,16 @@ export function JobDescriptionSuggestions({
 
       {requested && !loading && !error && suggestions.length === 0 ? (
         <p className="field-hint description-suggest-hint">
-          Your description already covers the key details contractors need.
+          {compact ? 'Looks good — nothing major to add.' : 'Your description already covers the key details contractors need.'}
         </p>
       ) : null}
 
       {requested && (loading || suggestions.length > 0) ? (
         <div className="description-suggestions" aria-live="polite">
           {!loading ? (
-            <p className="description-suggestions-title">Consider adding these details</p>
+            <p className="description-suggestions-title">
+              {compact ? 'You could add' : 'Consider adding these details'}
+            </p>
           ) : null}
           {!loading &&
             suggestions.map((item) => (
