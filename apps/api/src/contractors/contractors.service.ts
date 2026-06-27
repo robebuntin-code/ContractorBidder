@@ -108,6 +108,12 @@ export class ContractorsService {
     for (const [key, value] of Object.entries(dto)) {
       if (value !== undefined) data[key] = value;
     }
+    if (dto.logoUrl) {
+      data.logoUrl = this.media.normalizeStoredUrl(dto.logoUrl);
+    }
+    if (dto.insuranceDocUrl) {
+      data.insuranceDocUrl = this.media.normalizeStoredUrl(dto.insuranceDocUrl);
+    }
     return data;
   }
 

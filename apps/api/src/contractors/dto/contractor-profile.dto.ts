@@ -19,8 +19,9 @@ export class UpsertContractorProfileDto {
   @MaxLength(140)
   companyName?: string;
 
+  /** Stable media key (`uploads/...`) or public URL — normalized on save. */
   @IsOptional()
-  @IsUrl()
+  @IsString()
   @MaxLength(500)
   logoUrl?: string | null;
 

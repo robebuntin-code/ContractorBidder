@@ -4,9 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api, uploadToSignedUrl } from '@/lib/api';
 import { getBestCurrentPosition, reverseGeocode } from '@/lib/geocode';
-import { resolveMediaUrl } from '@/lib/mediaUrl';
+import { extractMediaKey, resolveMediaUrl } from '@/lib/mediaUrl';
 import { formatPhoneDisplay, formatPhoneInput, phoneDigits, phoneForStorage } from '@/lib/phoneFormat';
-import { inferImageContentType, imageExtensionForContentType } from '@/lib/uploadUtils';
+import {
+  type AllowedImageType,
+  imageExtensionForContentType,
+  prepareImageFileForUpload,
+} from '@/lib/uploadUtils';
 import { formatRole, SERVICE_TYPE_OPTIONS } from '@/lib/theme';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -132,6 +136,13 @@ function AccountPhoto({
   onEdit: () => void;
   showEdit?: boolean;
 }) {
+  const [previewBroken, setPreviewBroken] = useState(false);
+  const showPreview = preview && !previewBroken;
+
+  useEffect(() => {
+    setPreviewBroken(false);
+  }, [preview]);
+
   return (
     <div className="account-photo">
       <button
@@ -140,9 +151,14 @@ function AccountPhoto({
         onClick={showEdit ? onEdit : undefined}
         disabled={uploading || !showEdit}
       >
-        {preview ? (
+        {showPreview ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="" className="account-photo-img" />
+          <img
+            src={preview}
+            alt=""
+            className="account-photo-img"
+            onError={() => setPreviewBroken(true)}
+          />
         ) : (
           <span className="account-photo-initials">{initialsText}</span>
         )}
@@ -257,7 +273,7 @@ export default function ProfilePage() {
       const profile = await api.myContractorProfile();
       setHasProfile(true);
       setCompanyName(profile.companyName ?? '');
-      setLogoUrl(profile.logoUrl ?? null);
+      setLogoUrl(profile.logoUrl ? extractMediaKey(profile.logoUrl) ?? profile.logoUrl : null);
       setLogoPreview(profile.logoUrl ? resolveMediaUrl(profile.logoUrl) : null);
       setPhone(formatPhoneDisplay(profile.phone));
       setBusinessAddress(profile.businessAddress ?? '');
@@ -326,15 +342,24 @@ export default function ProfilePage() {
     if (!file) return;
 
     setError(null);
-    const contentType = inferImageContentType(file);
+    setLogoUploading(true);
+    let uploadFile: File;
+    let contentType: AllowedImageType;
+    try {
+      ({ file: uploadFile, contentType } = await prepareImageFileForUpload(file));
+    } catch (err) {
+      setLogoUploading(false);
+      setError(err instanceof Error ? err.message : 'Could not prepare logo');
+      return;
+    }
+
     const ext = imageExtensionForContentType(contentType);
     const fileName = `logo_${Date.now()}.${ext}`;
 
-    setLogoPreview(URL.createObjectURL(file));
-    setLogoUploading(true);
+    setLogoPreview(URL.createObjectURL(uploadFile));
     try {
       const signed = await api.signUpload(contentType, fileName);
-      const fileUrl = await uploadToSignedUrl(signed, file, contentType);
+      const fileUrl = await uploadToSignedUrl(signed, uploadFile, contentType);
       setLogoUrl(fileUrl);
       setLogoPreview(resolveMediaUrl(fileUrl));
     } catch (err) {
