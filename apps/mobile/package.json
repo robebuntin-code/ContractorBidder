@@ -18,8 +18,7 @@
     "eas:submit:ios": "eas submit --platform ios --profile production",
     "eas:device:create": "eas device:create",
     "install:iphone": "powershell -ExecutionPolicy Bypass -File ./scripts/install-on-iphone.ps1",
-    "eas:build:android:dev": "eas build --profile development --platform android",
-    "eas-build-pre-install": "cd ../.. && npm ci --workspace=@contractor-bidder/mobile --include-workspace-root"
+    "eas:build:android:dev": "eas build --profile development --platform android"
   },
   "dependencies": {
     "@contractor-bidder/types": "file:../../packages/types",
