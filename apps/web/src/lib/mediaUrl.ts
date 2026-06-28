@@ -1,7 +1,26 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
+function apiOrigin(): string {
+  return API_URL.replace(/\/api\/v1\/?$/, '');
+}
+
 function apiDevMediaBase(): string {
-  return `${API_URL.replace(/\/api\/v1\/?$/, '')}/api/v1/dev-media`;
+  return `${apiOrigin()}/api/v1/dev-media`;
+}
+
+function webDevMediaBase(): string {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api/v1/dev-media`;
+  }
+  return apiDevMediaBase();
+}
+
+/** Preferred public base for dev-media reads (API host — avoids brittle Vercel rewrites). */
+export function publicDevMediaBase(): string {
+  if (process.env.NEXT_PUBLIC_API_URL?.trim()) {
+    return apiDevMediaBase();
+  }
+  return webDevMediaBase();
 }
 
 /** Extract a stable object key from a stored media URL or key path. */
@@ -32,14 +51,14 @@ export function extractMediaKey(url: string): string | null {
 
 /**
  * Resolve job/profile media for display.
- * In the browser, routes through the web app (same-origin Next rewrite → API).
+ * Prefer the API dev-media host; fall back to same-origin proxy in local dev.
  */
 export function resolveMediaUrl(url: string): string {
   if (!url?.trim()) return url;
 
   const trimmed = url.trim();
 
-  // Direct CDN/R2 public URLs — do not rewrite through dev-media proxy.
+  // Direct CDN/R2 public URLs — use unchanged.
   if (/^https?:\/\//i.test(trimmed) && !trimmed.includes('/dev-media/')) {
     return trimmed;
   }
@@ -47,11 +66,30 @@ export function resolveMediaUrl(url: string): string {
   const key = extractMediaKey(trimmed);
   if (!key) return trimmed;
 
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}/api/v1/dev-media/${key}`;
+  return `${publicDevMediaBase()}/${key}`;
+}
+
+/** Candidate download URLs — try API host first, then web proxy, then raw input. */
+export function mediaDownloadCandidates(url: string): string[] {
+  const trimmed = url.trim();
+  if (!trimmed) return [];
+
+  const key = extractMediaKey(trimmed);
+  const candidates = new Set<string>();
+
+  if (key) {
+    candidates.add(`${publicDevMediaBase()}/${key}`);
+    if (typeof window !== 'undefined') {
+      candidates.add(`${window.location.origin}/api/v1/dev-media/${key}`);
+    }
+    candidates.add(`${apiDevMediaBase()}/${key}`);
   }
 
-  return `${apiDevMediaBase()}/${key}`;
+  const resolved = resolveMediaUrl(trimmed);
+  if (resolved) candidates.add(resolved);
+  if (trimmed.startsWith('http')) candidates.add(trimmed);
+
+  return [...candidates];
 }
 
 /** Normalize photo URLs returned from the API before display. */

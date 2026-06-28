@@ -1,5 +1,6 @@
 'use client';
 
+import { RemotePhoto } from '@/components/RemotePhoto';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 import type { JobPhotoComparison } from '@contractor-bidder/types';
 
@@ -28,13 +29,21 @@ export function JobScopeComparisons({
           <div key={`${pair.before}-${index}`} className="scope-comparison-card">
             <div className="scope-comparison-half">
               <span className="scope-comparison-label">Before</span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={resolveMediaUrl(pair.before)} alt="Before" className="scope-comparison-img" />
+              <RemotePhoto
+                uri={resolveMediaUrl(pair.before)}
+                alt="Before"
+                className="scope-comparison-img"
+                missingClassName="scope-comparison-img scope-comparison-img--missing"
+              />
             </div>
             <div className="scope-comparison-half">
               <span className="scope-comparison-label">After (planned)</span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={resolveMediaUrl(pair.after)} alt="After planned scope" className="scope-comparison-img" />
+              <RemotePhoto
+                uri={resolveMediaUrl(pair.after)}
+                alt="After planned scope"
+                className="scope-comparison-img"
+                missingClassName="scope-comparison-img scope-comparison-img--missing"
+              />
             </div>
           </div>
         ))}

@@ -917,6 +917,17 @@ h1 {
   margin-top: 12px;
 }
 
+.job-detail-photos-section {
+  margin-top: 16px;
+}
+
+.job-detail-photos-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
 .job-detail-photo {
   width: 100%;
   height: auto;
@@ -926,6 +937,33 @@ h1 {
   background: var(--bg);
   border: 1px solid var(--border);
   display: block;
+}
+
+.job-detail-photo--missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 160px;
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+.job-detail-photo-missing-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.job-detail-photo-missing-hint {
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 28rem;
 }
 
 /* Before/after scope pairs on job detail */
@@ -992,6 +1030,17 @@ h1 {
   background: var(--bg);
   border: 1px solid var(--border);
   display: block;
+}
+
+.scope-comparison-img--missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .scope-comparison-remove {

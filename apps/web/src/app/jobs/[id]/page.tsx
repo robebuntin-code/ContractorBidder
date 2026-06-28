@@ -16,6 +16,7 @@ import AcceptBidPaymentModal from '@/components/AcceptBidPaymentModal';
 import type { AcceptanceFeeStatus } from '@contractor-bidder/types';
 import { resolveMediaUrl, resolvePhotoUrls } from '@/lib/mediaUrl';
 import { JobScopeComparisons } from '@/components/JobScopeComparisons';
+import { JobPhotoGallery } from '@/components/RemotePhoto';
 import { inferImageContentType, imageExtensionForContentType } from '@/lib/uploadUtils';
 import { formatJobTimeframe, jobTimeframeHeading } from '@/lib/jobDates';
 import { useRealtime } from '@/lib/realtime';
@@ -372,6 +373,12 @@ export default function JobDetailPage() {
       {notice && <p style={{ color: '#16a34a' }}>{notice}</p>}
       {error && <p className="error">{error}</p>}
 
+      {(job.photoComparisons?.length ?? 0) > 0 && (
+        <JobScopeComparisons comparisons={job.photoComparisons} />
+      )}
+
+      <JobPhotoGallery photos={job.photos ?? []} />
+
       {canEdit && (
         <Link href={`/jobs/${job.id}/edit`} className="btn-outline" style={{ display: 'inline-block', marginTop: 8 }}>
           Edit job
@@ -438,24 +445,6 @@ export default function JobDetailPage() {
               </button>
             </>
           )}
-        </div>
-      )}
-
-      {(job.photoComparisons?.length ?? 0) > 0 && (
-        <JobScopeComparisons comparisons={job.photoComparisons} />
-      )}
-
-      {(job.photos?.length ?? 0) > 0 && (
-        <div className="job-detail-photos">
-          {job.photos.map((uri) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={uri}
-              src={uri}
-              alt="Job photo"
-              className="job-detail-photo"
-            />
-          ))}
         </div>
       )}
 
