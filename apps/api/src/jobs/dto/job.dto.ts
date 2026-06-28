@@ -24,6 +24,9 @@ export const WORK_TYPES = [
   'hauling',
   'carpentry',
   'handyman',
+  'remodeling',
+  'painting',
+  'heating_ac',
   'other',
 ] as const;
 

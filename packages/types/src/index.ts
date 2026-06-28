@@ -15,6 +15,9 @@ export const WORK_TYPES = [
   'hauling',
   'carpentry',
   'handyman',
+  'remodeling',
+  'painting',
+  'heating_ac',
   'other',
 ] as const;
 
@@ -27,6 +30,9 @@ export const WORK_TYPE_LABELS: Record<WorkType, string> = {
   hauling: 'Hauling',
   carpentry: 'Carpentry',
   handyman: 'Handyman',
+  remodeling: 'Remodeling',
+  painting: 'Painting',
+  heating_ac: 'Heating/AC',
   other: 'Other',
 };
 

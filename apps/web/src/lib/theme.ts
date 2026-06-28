@@ -5,6 +5,9 @@ export const SERVICE_TYPE_OPTIONS = [
   { value: 'hauling', label: 'Hauling' },
   { value: 'carpentry', label: 'Carpentry' },
   { value: 'handyman', label: 'Handyman' },
+  { value: 'remodeling', label: 'Remodeling' },
+  { value: 'painting', label: 'Painting' },
+  { value: 'heating_ac', label: 'Heating/AC' },
   { value: 'other', label: 'Other' },
 ] as const;
 

@@ -9,6 +9,9 @@ exports.WORK_TYPES = [
     'hauling',
     'carpentry',
     'handyman',
+    'remodeling',
+    'painting',
+    'heating_ac',
     'other',
 ];
 exports.WORK_TYPE_LABELS = {
@@ -18,6 +21,9 @@ exports.WORK_TYPE_LABELS = {
     hauling: 'Hauling',
     carpentry: 'Carpentry',
     handyman: 'Handyman',
+    remodeling: 'Remodeling',
+    painting: 'Painting',
+    heating_ac: 'Heating/AC',
     other: 'Other',
 };
 function formatWorkType(value) {
