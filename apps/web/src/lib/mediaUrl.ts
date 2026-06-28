@@ -37,12 +37,24 @@ export function extractMediaKey(url: string): string | null {
 export function resolveMediaUrl(url: string): string {
   if (!url?.trim()) return url;
 
-  const key = extractMediaKey(url);
-  if (!key) return url;
+  const trimmed = url.trim();
+
+  // Direct CDN/R2 public URLs — do not rewrite through dev-media proxy.
+  if (/^https?:\/\//i.test(trimmed) && !trimmed.includes('/dev-media/')) {
+    return trimmed;
+  }
+
+  const key = extractMediaKey(trimmed);
+  if (!key) return trimmed;
 
   if (typeof window !== 'undefined') {
     return `${window.location.origin}/api/v1/dev-media/${key}`;
   }
 
   return `${apiDevMediaBase()}/${key}`;
+}
+
+/** Normalize photo URLs returned from the API before display. */
+export function resolvePhotoUrls(photos: string[] | undefined | null): string[] {
+  return (photos ?? []).map((url) => resolveMediaUrl(url)).filter(Boolean);
 }

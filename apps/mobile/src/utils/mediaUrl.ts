@@ -39,8 +39,15 @@ function buildDevMediaUrl(key: string): string {
 export function resolveMediaUrl(url: string): string {
   if (!url?.trim()) return url;
 
-  const key = extractMediaKey(url);
-  if (!key) return url;
+  const trimmed = url.trim();
+
+  // Direct CDN/R2 public URLs — use unchanged.
+  if (/^https?:\/\//i.test(trimmed) && !trimmed.includes('/dev-media/')) {
+    return trimmed;
+  }
+
+  const key = extractMediaKey(trimmed);
+  if (!key) return trimmed;
 
   return buildDevMediaUrl(key);
 }

@@ -14,7 +14,7 @@ import {
 import { api, uploadToSignedUrl, type BidWithContractor, type MessageView } from '@/lib/api';
 import AcceptBidPaymentModal from '@/components/AcceptBidPaymentModal';
 import type { AcceptanceFeeStatus } from '@contractor-bidder/types';
-import { resolveMediaUrl } from '@/lib/mediaUrl';
+import { resolveMediaUrl, resolvePhotoUrls } from '@/lib/mediaUrl';
 import { JobScopeComparisons } from '@/components/JobScopeComparisons';
 import { inferImageContentType, imageExtensionForContentType } from '@/lib/uploadUtils';
 import { formatJobTimeframe, jobTimeframeHeading } from '@/lib/jobDates';
@@ -69,7 +69,14 @@ export default function JobDetailPage() {
         api.getFlags().catch(() => ({ paymentsEnabled: false })),
       ]);
       setMe(meRes);
-      setJob(jobRes);
+      setJob({
+        ...jobRes,
+        photos: resolvePhotoUrls(jobRes.photos),
+        photoComparisons: (jobRes.photoComparisons ?? []).map((pair) => ({
+          before: resolveMediaUrl(pair.before),
+          after: resolveMediaUrl(pair.after),
+        })),
+      });
       setPaymentsEnabled(flagsRes.paymentsEnabled);
       if (meRes.id === jobRes.createdByUserId && jobRes.status === 'AWARDED') {
         try {
@@ -438,13 +445,13 @@ export default function JobDetailPage() {
         <JobScopeComparisons comparisons={job.photoComparisons} />
       )}
 
-      {job.photos.length > 0 && (
+      {(job.photos?.length ?? 0) > 0 && (
         <div className="job-detail-photos">
           {job.photos.map((uri) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={uri}
-              src={resolveMediaUrl(uri)}
+              src={uri}
               alt="Job photo"
               className="job-detail-photo"
             />

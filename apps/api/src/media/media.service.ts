@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { Request } from 'express';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { SignUploadDto } from './dto/sign-upload.dto';
 
@@ -94,6 +94,37 @@ export class MediaService {
     if (!storedUrl?.trim()) return storedUrl;
     const key = this.extractMediaKey(storedUrl);
     return key ?? storedUrl.trim();
+  }
+
+  usesS3Storage(): boolean {
+    return !!(this.s3 && this.bucket);
+  }
+
+  /** Read an uploaded object from S3/R2 (production media store). */
+  async loadObject(key: string): Promise<{ body: Buffer; contentType: string }> {
+    if (!this.s3 || !this.bucket) {
+      throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'Object storage not configured.' });
+    }
+
+    try {
+      const result = await this.s3.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      if (!result.Body) {
+        throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'File not found.' });
+      }
+      const body = Buffer.from(await result.Body.transformToByteArray());
+      return {
+        body,
+        contentType: result.ContentType ?? 'application/octet-stream',
+      };
+    } catch (err) {
+      const name = err && typeof err === 'object' && 'name' in err ? String(err.name) : '';
+      if (name === 'NoSuchKey' || name === 'NotFound') {
+        throw new NotFoundException({ code: 'MEDIA_NOT_FOUND', message: 'File not found.' });
+      }
+      throw err;
+    }
   }
 
   /** Rewrite a stored media URL so phones/other clients can fetch it (fixes localhost URLs). */
