@@ -6,7 +6,7 @@
 # Then set Variables (Step 6c in docs/Deploy-Vercel-Railway-Neon.md).
 
 [build]
-buildCommand = "npm ci && npm run db:generate --workspace apps/api && npm run build --workspace apps/api"
+buildCommand = "npm ci && npm run db:generate && npm run build --workspace apps/api"
 watchPatterns = ["apps/api/**", "packages/**"]
 
 [deploy]
