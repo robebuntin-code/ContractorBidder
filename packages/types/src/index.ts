@@ -230,6 +230,43 @@ export type BidWithContractorView = BidView & {
   contractor?: BidContractorPreview;
 };
 
+/** Label for a bid's contractor — masked until accepted; works with legacy API responses too. */
+export function formatBidContractorDisplayName(
+  contractor: Partial<BidContractorPreview> | undefined,
+  options: { anonymousLabel: string; bidStatus?: BidStatus },
+): string {
+  if (!contractor) return options.anonymousLabel;
+
+  const displayName = contractor.displayName?.trim();
+  if (displayName) return displayName;
+
+  const identityRevealed =
+    contractor.identityRevealed === true || options.bidStatus === 'ACCEPTED';
+
+  if (identityRevealed) {
+    const company = contractor.companyName?.trim();
+    if (company) return company;
+    const personal = [contractor.firstName, contractor.lastName]
+      .filter((part): part is string => !!part?.trim())
+      .join(' ')
+      .trim();
+    if (personal) return personal;
+    return 'Contractor';
+  }
+
+  return options.anonymousLabel;
+}
+
+/** Whether the contractor's public identity (name, Google link) may be shown. */
+export function isBidContractorIdentityRevealed(
+  contractor: Partial<BidContractorPreview> | undefined,
+  bidStatus?: BidStatus,
+): boolean {
+  if (!contractor) return false;
+  if (contractor.identityRevealed === true) return true;
+  return bidStatus === 'ACCEPTED';
+}
+
 /** Returned from POST /bids/:id/accept when payments may be required. */
 export interface AcceptBidResponse {
   bid: BidWithContractorView;

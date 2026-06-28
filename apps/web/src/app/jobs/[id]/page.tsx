@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { ContractorReviewView, JobFullView, PublicUser } from '@contractor-bidder/types';
-import { formatWorkType } from '@contractor-bidder/types';
+import { formatWorkType, formatBidContractorDisplayName, isBidContractorIdentityRevealed } from '@contractor-bidder/types';
 import { formatBudget } from '@contractor-bidder/ui';
 import {
   MessageBubble,
@@ -158,7 +158,11 @@ export default function JobDetailPage() {
   const awardedContractorName = (() => {
     if (!awardedContractorId) return null;
     if (acceptedBid?.contractor) {
-      return acceptedBid.contractor.displayName;
+      const idx = bids.findIndex((b) => b.id === acceptedBid.id);
+      return formatBidContractorDisplayName(acceptedBid.contractor, {
+        anonymousLabel: `Contractor #${idx >= 0 ? idx + 1 : 1}`,
+        bidStatus: acceptedBid.status,
+      });
     }
     if (me.id === awardedContractorId) {
       return `${me.firstName} ${me.lastName}`;
@@ -553,7 +557,7 @@ export default function JobDetailPage() {
         <div>
           <h3>Bids ({bids.length})</h3>
           {bids.length === 0 && <p className="muted">No bids yet.</p>}
-          {bids.map((bid) => (
+          {bids.map((bid, index) => (
             <div key={bid.id} className="card">
               <strong>
                 {formatBudget({ budgetMin: bid.amountCents, currency: bid.currency })}
@@ -561,9 +565,13 @@ export default function JobDetailPage() {
               <span className="badge">{bid.status}</span>
               {bid.contractor && (
                 <p className="muted" style={{ margin: '6px 0' }}>
-                  {bid.contractor.displayName} · ⭐ {bid.contractor.ratingAgg} (
-                  {bid.contractor.ratingCount})
-                  {bid.contractor.identityRevealed && bid.contractor.googleReviewsUrl && (
+                  {formatBidContractorDisplayName(bid.contractor, {
+                    anonymousLabel: `Contractor #${index + 1}`,
+                    bidStatus: bid.status,
+                  })}{' '}
+                  · ⭐ {bid.contractor.ratingAgg} ({bid.contractor.ratingCount})
+                  {isBidContractorIdentityRevealed(bid.contractor, bid.status) &&
+                    bid.contractor.googleReviewsUrl && (
                     <>
                       {' · '}
                       <a href={bid.contractor.googleReviewsUrl} target="_blank" rel="noreferrer">
@@ -602,12 +610,20 @@ export default function JobDetailPage() {
                 value={activeCounterpart}
                 onChange={(e) => setCounterpartId(e.target.value)}
               >
-                {counterpartOptions.map((id) => (
+                {counterpartOptions.map((id) => {
+                  const bid = bids.find((b) => b.contractorUserId === id);
+                  const idx = bid ? bids.indexOf(bid) : -1;
+                  return (
                   <option key={id} value={id}>
-                    {bids.find((b) => b.contractorUserId === id)?.contractor?.displayName ??
-                      `Contractor ${id.slice(0, 8)}`}
+                    {bid?.contractor
+                      ? formatBidContractorDisplayName(bid.contractor, {
+                          anonymousLabel: `Contractor #${idx >= 0 ? idx + 1 : 1}`,
+                          bidStatus: bid.status,
+                        })
+                      : `Contractor ${id.slice(0, 8)}`}
                   </option>
-                ))}
+                  );
+                })}
               </select>
             </>
           )}

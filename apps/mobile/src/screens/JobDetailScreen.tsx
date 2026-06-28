@@ -26,6 +26,7 @@ import { WEB_URL } from '../config';
 import { useAuth } from '../auth';
 import { useUnreadNotifications } from '../unreadNotifications';
 import { useRealtime } from '../realtime';
+import { formatBidContractorDisplayName, type BidStatus } from '@contractor-bidder/types';
 import { colors, formatBudget, formatWorkType, styles } from '../theme';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SharedStackParamList } from '../navTypes';
@@ -169,7 +170,11 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
   const awardedContractorName = (() => {
     if (!awardedContractorId) return null;
     if (acceptedBid?.contractor) {
-      return acceptedBid.contractor.displayName;
+      const idx = bids.findIndex((b) => b.id === acceptedBid.id);
+      return formatBidContractorDisplayName(acceptedBid.contractor, {
+        anonymousLabel: `Contractor #${idx >= 0 ? idx + 1 : 1}`,
+        bidStatus: acceptedBid.status as BidStatus,
+      });
     }
     if (user.id === awardedContractorId) {
       return `${user.firstName} ${user.lastName}`;
@@ -603,7 +608,10 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
             )}
             {isOwner && counterpartOptions.length > 1 && (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                {counterpartOptions.map((id) => (
+                {counterpartOptions.map((id) => {
+                  const bid = bids.find((b) => b.contractorUserId === id);
+                  const idx = bid ? bids.indexOf(bid) : -1;
+                  return (
                   <TouchableOpacity
                     key={id}
                     onPress={() => setCounterpart(id)}
@@ -617,11 +625,16 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
                     }}
                   >
                     <Text style={{ color: activeCounterpart === id ? '#fff' : colors.text, fontSize: 12 }}>
-                      {bids.find((b) => b.contractorUserId === id)?.contractor?.displayName ??
-                        `Contractor ${id.slice(0, 8)}`}
+                      {bid?.contractor
+                        ? formatBidContractorDisplayName(bid.contractor, {
+                            anonymousLabel: `Contractor #${idx >= 0 ? idx + 1 : 1}`,
+                            bidStatus: bid.status as BidStatus,
+                          })
+                        : `Contractor ${id.slice(0, 8)}`}
                     </Text>
                   </TouchableOpacity>
-                ))}
+                  );
+                })}
               </View>
             )}
 
@@ -669,7 +682,7 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
           <View style={styles.card}>
             <Text style={styles.subtitle}>Bids ({bids.length})</Text>
             {bids.length === 0 && <Text style={styles.muted}>No bids yet.</Text>}
-            {bids.map((bid) => (
+            {bids.map((bid, index) => (
               <View key={bid.id} style={{ paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
                 <Text style={{ fontWeight: '700', color: colors.text }}>
                   {formatBudget(bid.amountCents, bid.amountCents, bid.currency)}{' '}
@@ -677,8 +690,11 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
                 </Text>
                 {bid.contractor && (
                   <Text style={styles.muted}>
-                    {bid.contractor.displayName} · ⭐ {bid.contractor.ratingAgg} (
-                    {bid.contractor.ratingCount})
+                    {formatBidContractorDisplayName(bid.contractor, {
+                      anonymousLabel: `Contractor #${index + 1}`,
+                      bidStatus: bid.status as BidStatus,
+                    })}{' '}
+                    · ⭐ {bid.contractor.ratingAgg} ({bid.contractor.ratingCount})
                   </Text>
                 )}
                 {bid.message ? <Text style={{ color: colors.text, marginTop: 2 }}>{bid.message}</Text> : null}
