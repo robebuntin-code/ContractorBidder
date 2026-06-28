@@ -18,10 +18,11 @@
     "eas:submit:ios": "eas submit --platform ios --profile production",
     "eas:device:create": "eas device:create",
     "install:iphone": "powershell -ExecutionPolicy Bypass -File ./scripts/install-on-iphone.ps1",
-    "eas:build:android:dev": "eas build --profile development --platform android"
+    "eas:build:android:dev": "eas build --profile development --platform android",
+    "eas-build-pre-install": "cd ../.. && npm ci --workspace=@contractor-bidder/mobile --include-workspace-root"
   },
   "dependencies": {
-    "@contractor-bidder/types": "*",
+    "@contractor-bidder/types": "file:../../packages/types",
     "@contractor-bidder/ui": "file:../../packages/ui",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
