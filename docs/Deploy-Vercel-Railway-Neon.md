@@ -248,9 +248,13 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 
 AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
 MEDIA_S3_BUCKET=
 MEDIA_S3_ENDPOINT=
-MEDIA_PUBLIC_BASE_URL=
+MEDIA_LOCAL_ROOT=/data/media
+PUBLIC_WEB_URL=https://dojobid.com
+MEDIA_PUBLIC_BASE_URL=https://dojobid.com/api/v1/dev-media
 ```
 
 Generate JWT secrets (PowerShell):
@@ -263,24 +267,70 @@ Run twice for the two JWT values.
 
 **Important — job photos on Railway**
 
-Railway’s filesystem is **ephemeral**. Without S3, uploads go to `.dev-media` on the container and **disappear on redeploy**.
+Railway’s default filesystem is **ephemeral**. Without persistent storage, uploads disappear on redeploy and job photos break.
 
-For production, configure object storage before launch:
+**Do Step 6c below before launch** (Railway volume — ~5 minutes, no extra vendor account required).
 
-- **AWS S3**, or
-- **Cloudflare R2** (S3-compatible — set `MEDIA_S3_ENDPOINT`)
+For high traffic later, you can switch to **Cloudflare R2** (Step 6d).
 
-Leave `MEDIA_S3_BUCKET` empty only for short-lived demos.
+### Step 6c. Persistent job photos (Railway volume — required)
 
-After S3/R2 is configured, set:
+This keeps photos on a mounted disk that survives API redeploys.
 
-```env
-MEDIA_PUBLIC_BASE_URL=https://api.yourdomain.com/api/v1/dev-media
-```
+1. Open your **API service** on Railway → **Settings** → **Volumes**.
+2. Click **Add Volume** (or **Mount volume**).
+3. Set **Mount path** to:
 
-(or your CDN URL if using public bucket/CloudFront)
+   ```
+   /data/media
+   ```
 
-Redeploy after changing variables.
+4. In **Variables**, add or update:
+
+   ```env
+   MEDIA_LOCAL_ROOT=/data/media
+   PUBLIC_WEB_URL=https://dojobid.com
+   MEDIA_PUBLIC_BASE_URL=https://dojobid.com/api/v1/dev-media
+   ```
+
+   Use your real domain if different from `dojobid.com`.
+
+5. **Redeploy** the API service.
+
+6. Verify persistence:
+
+   ```bash
+   curl https://YOUR-RAILWAY-API.up.railway.app/api/v1/health
+   ```
+
+   Expect `"media":{"mode":"volume","persistent":true}`.
+
+7. **Re-upload photos** on any jobs posted before this step (old files are gone from ephemeral storage).
+
+New uploads are stored under `/data/media/uploads/…` and served through `https://dojobid.com/api/v1/dev-media/…` (proxied to the API).
+
+### Step 6d. Optional — Cloudflare R2 (S3-compatible, scales better)
+
+Use this instead of (or later in addition to) a Railway volume when you outgrow single-server disk.
+
+1. Create an [Cloudflare R2](https://dash.cloudflare.com/) bucket, e.g. `dojobid-media`.
+2. **R2 → Manage R2 API tokens** → create token with Object Read & Write on that bucket.
+3. **CORS**: apply `docs/r2-cors.json` to the bucket (allows browser PUT from dojobid.com).
+4. Railway **Variables**:
+
+   ```env
+   MEDIA_S3_BUCKET=dojobid-media
+   MEDIA_S3_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+   AWS_ACCESS_KEY_ID=your_r2_access_key
+   AWS_SECRET_ACCESS_KEY=your_r2_secret_key
+   AWS_REGION=auto
+   MEDIA_PUBLIC_BASE_URL=https://dojobid.com/api/v1/dev-media
+   PUBLIC_WEB_URL=https://dojobid.com
+   ```
+
+   The API serves reads through `/api/v1/dev-media/…` (pulls from R2). Uploads use presigned PUT URLs directly to R2.
+
+5. Redeploy API. Health should show `"media":{"mode":"s3","persistent":true}`.
 
 ### Step 6b. Enable Stripe bid acceptance fee ($1 homeowner)
 

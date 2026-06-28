@@ -1,13 +1,25 @@
 import { Controller, Get } from '@nestjs/common';
 import { FeatureFlagsService } from './common/feature-flags.service';
+import { MediaStorageBootstrap } from './media/media-storage.bootstrap';
 
 @Controller()
 export class AppController {
-  constructor(private readonly flags: FeatureFlagsService) {}
+  constructor(
+    private readonly flags: FeatureFlagsService,
+    private readonly mediaStorage: MediaStorageBootstrap,
+  ) {}
 
   @Get('health')
   health() {
-    return { status: 'ok', time: new Date().toISOString() };
+    const media = this.mediaStorage.status();
+    return {
+      status: 'ok',
+      time: new Date().toISOString(),
+      media: {
+        mode: media.mode,
+        persistent: media.persistent,
+      },
+    };
   }
 
   @Get('flags')

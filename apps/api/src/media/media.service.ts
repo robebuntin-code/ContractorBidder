@@ -1,10 +1,17 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { Request } from 'express';
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { SignUploadDto } from './dto/sign-upload.dto';
+import {
+  getMediaStorageStatus,
+  isPersistentLocalRoot,
+  requirePersistentMediaInProduction,
+  resolveLocalMediaRoot,
+  resolvePublicMediaBaseUrl,
+} from './media-storage.util';
 
 export interface SignedUpload {
   /** PUT here with the exact Content-Type to upload the object. */
@@ -30,11 +37,9 @@ export class MediaService {
   private readonly logger = new Logger('Media');
   private readonly s3?: S3Client;
   private readonly bucket?: string;
-  private readonly publicBaseUrl?: string;
 
   constructor(private readonly config: ConfigService) {
     this.bucket = this.config.get<string>('MEDIA_S3_BUCKET') || undefined;
-    this.publicBaseUrl = this.config.get<string>('MEDIA_PUBLIC_BASE_URL') || undefined;
     if (this.bucket) {
       this.s3 = new S3Client({
         region: this.config.get<string>('AWS_REGION') ?? 'us-east-1',
@@ -45,6 +50,8 @@ export class MediaService {
   }
 
   async signUpload(userId: string, dto: SignUploadDto, req?: Request): Promise<SignedUpload> {
+    requirePersistentMediaInProduction(this.config, this.usesS3Storage());
+
     const ext = dto.fileName.includes('.') ? dto.fileName.split('.').pop() : 'bin';
     const key = `uploads/${userId}/${randomUUID()}.${ext}`;
 
@@ -54,22 +61,35 @@ export class MediaService {
         new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: dto.contentType }),
         { expiresIn: UPLOAD_TTL_SECONDS },
       );
-      const fileUrl = this.publicBaseUrl
-        ? `${this.publicBaseUrl.replace(/\/$/, '')}/${key}`
-        : key;
+      const publicBase = this.getPublicBase(req);
+      const fileUrl = publicBase ? `${publicBase}/${key}` : key;
       return { uploadUrl, fileUrl, key, expiresInSeconds: UPLOAD_TTL_SECONDS };
     }
 
-    // Dev fallback: upload to local dev-media routes (see DevMediaController).
-    this.logger.warn('MEDIA_S3_BUCKET not set — using local dev-media storage.');
+    const localRoot = resolveLocalMediaRoot(this.config);
+    if (!isPersistentLocalRoot(localRoot)) {
+      this.logger.warn('MEDIA_S3_BUCKET not set — using ephemeral local dev-media storage.');
+    }
+
+    // Dev / volume-backed storage: PUT through dev-media routes (see DevMediaController).
     const uploadBase = this.getDevMediaUploadBase(req);
-    const fileBase = this.getDevMediaBase(req);
+    const fileBase = this.getPublicBase(req) || this.getDevMediaBase(req);
     return {
       uploadUrl: `${uploadBase}/${key}?dev-upload=true`,
       fileUrl: `${fileBase}/${key}`,
       key,
       expiresInSeconds: UPLOAD_TTL_SECONDS,
     };
+  }
+
+  getStorageStatus(req?: Request) {
+    return getMediaStorageStatus(this.config, this.usesS3Storage(), this.bucket);
+  }
+
+  private getPublicBase(req?: Request): string {
+    const fromConfig = resolvePublicMediaBaseUrl(this.config);
+    if (fromConfig) return fromConfig;
+    return this.getDevMediaBase(req);
   }
 
   /** Base URL clients PUT uploads to — always matches the API host that issued the signed URL. */
@@ -82,7 +102,8 @@ export class MediaService {
 
   /** Public base URL for dev-media files, reachable from mobile devices on the LAN. */
   getDevMediaBase(req?: Request): string {
-    if (this.publicBaseUrl) return this.publicBaseUrl.replace(/\/$/, '');
+    const configured = resolvePublicMediaBaseUrl(this.config);
+    if (configured) return configured;
     const port = this.config.get<string>('API_PORT') ?? '4000';
     const host = req?.get('host') ?? `localhost:${port}`;
     const proto = req?.get('x-forwarded-proto') ?? req?.protocol ?? 'http';
@@ -134,10 +155,10 @@ export class MediaService {
     if (!key) return storedUrl;
 
     if (this.s3 && this.bucket) {
-      if (this.publicBaseUrl) {
-        return `${this.publicBaseUrl.replace(/\/$/, '')}/${key}`;
+      const publicBase = this.getPublicBase(req);
+      if (publicBase) {
+        return `${publicBase}/${key}`;
       }
-      // S3 without a public CDN — serve via dev-media-style path resolved on read.
       return `${this.getDevMediaBase(req)}/${key}`;
     }
 

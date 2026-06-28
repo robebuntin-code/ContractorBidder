@@ -2,15 +2,15 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
+import { resolveLocalMediaRoot } from './media-storage.util';
 
-/** Local filesystem store used when MEDIA_S3_BUCKET is not configured. */
+/** On-disk store for dev-media when S3/R2 is not configured. */
 @Injectable()
 export class DevMediaService {
   constructor(private readonly config: ConfigService) {}
 
   private get root(): string {
-    const configured = this.config.get<string>('MEDIA_LOCAL_ROOT')?.trim();
-    return configured || join(process.cwd(), '.dev-media');
+    return resolveLocalMediaRoot(this.config);
   }
 
   private pathForKey(key: string): string {
