@@ -124,6 +124,29 @@ export interface Bid {
   };
 }
 
+export interface AcceptBidResponse {
+  bid: Bid;
+  paymentRequired: boolean;
+  jobId: string;
+  bidId: string;
+  homeownerPaymentId?: string | null;
+}
+
+export interface PaymentSessionResponse {
+  paymentId: string;
+  clientSecret: string | null;
+}
+
+export interface AcceptanceFeeStatus {
+  required: boolean;
+  status: 'NONE' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+  jobId: string;
+  bidId?: string | null;
+  paymentId?: string | null;
+  amountCents: number;
+  currency: string;
+}
+
 export interface ContractorProfile {
   userId: string;
   firstName: string;
@@ -386,7 +409,20 @@ export const api = {
       body: JSON.stringify({ amountCents, message }),
     }),
 
-  acceptBid: (bidId: string) => request<Bid>(`/bids/${bidId}/accept`, { method: 'POST' }),
+  acceptBid: (bidId: string) => request<AcceptBidResponse>(`/bids/${bidId}/accept`, { method: 'POST' }),
+
+  createPaymentSession: (input: {
+    jobId: string;
+    bidId: string;
+    direction: 'HOMEOWNER_ACCEPT_FEE';
+  }) =>
+    request<PaymentSessionResponse>('/payments/session', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  getAcceptanceFeeStatus: (jobId: string) =>
+    request<AcceptanceFeeStatus>(`/payments/acceptance-fee?jobId=${encodeURIComponent(jobId)}`),
 
   getJobReview: (jobId: string) => request<ContractorReview | null>(`/jobs/${jobId}/review`),
 

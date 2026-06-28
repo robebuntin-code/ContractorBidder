@@ -2660,3 +2660,41 @@ input[type='range'] {
 .how-it-works-footer .btn-primary {
   width: 100%;
 }
+
+.accept-payment-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.accept-payment-modal {
+  width: min(100%, 440px);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.accept-payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.accept-payment-submit {
+  width: 100%;
+}
+
+.accept-payment-cancel {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.accept-payment-banner {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}

@@ -239,7 +239,6 @@ JWT_REFRESH_TTL=30d
 
 PAYMENTS_ENABLED=false
 MESSAGING_GROUP_VISIBLE=false
-PROFILE_REQUIRE_VERIFICATION=false
 JOBS_MAX_PHOTOS=4
 AI_JOB_DESCRIPTION_ENABLED=true
 GEMINI_API_KEY=
@@ -282,6 +281,34 @@ MEDIA_PUBLIC_BASE_URL=https://api.yourdomain.com/api/v1/dev-media
 (or your CDN URL if using public bucket/CloudFront)
 
 Redeploy after changing variables.
+
+### Step 6b. Enable Stripe bid acceptance fee ($1 homeowner)
+
+When a homeowner accepts a bid, DOJOBID can charge a **$1 acceptance fee** before revealing the job address to the contractor.
+
+1. Create a [Stripe](https://dashboard.stripe.com) account (start in **Test mode**).
+2. **Developers → API keys:** copy **Secret key** → Railway `STRIPE_SECRET_KEY`.
+3. **Developers → Webhooks → Add endpoint:**
+   - URL: `https://YOUR-RAILWAY-API.up.railway.app/api/v1/payments/webhook/stripe`
+   - Events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`
+   - Copy **Signing secret** → Railway `STRIPE_WEBHOOK_SECRET`
+4. Railway variables:
+
+   ```env
+   PAYMENTS_ENABLED=true
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   ```
+
+5. Vercel → **Environment Variables:**
+
+   | Name | Value |
+   |------|--------|
+   | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` from Stripe |
+
+6. Redeploy **API** and **web**. Test on a job: accept bid → pay $1 in the modal → contractor sees address after webhook.
+
+Use card `4242 4242 4242 4242` in test mode. Leave `PAYMENTS_ENABLED=false` until Stripe keys are set on both Railway and Vercel.
 
 ### Step 7. Add a custom API domain on Railway
 
@@ -335,6 +362,7 @@ In **Project → Settings → Environment Variables**:
 | Name | Value | Environments |
 |------|--------|--------------|
 | `NEXT_PUBLIC_API_URL` | `https://api.yourdomain.com/api/v1` | Production (and Preview if you want staging) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` (when `PAYMENTS_ENABLED=true`) | Production |
 
 ![Figure 10 — Vercel Environment Variables: NEXT_PUBLIC_API_URL for production](./deploy-screenshots/path-a/vercel-03-env-vars.png)
 
@@ -508,6 +536,7 @@ Schema changes ship with API deploys (`prisma migrate deploy`). Backups and bran
 - [ ] GoDaddy DNS: `@`/`www` → Vercel, `api` → Railway CNAME
 - [ ] `API_CORS_ORIGIN` includes production web URL(s)
 - [ ] S3/R2 configured for job photos (recommended before real users)
+- [ ] Stripe webhook + `PAYMENTS_ENABLED=true` (optional — $1 bid acceptance fee)
 - [ ] Login, post job, and photo flow tested end-to-end
 - [ ] Demo seed passwords removed or not used in production
 

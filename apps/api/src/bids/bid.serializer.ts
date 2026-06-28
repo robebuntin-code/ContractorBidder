@@ -36,3 +36,21 @@ export function toBidView(bid: BidWithContractor, includeProfile = false) {
     },
   };
 }
+
+export interface AcceptBidResponse {
+  bid: ReturnType<typeof toBidView>;
+  paymentRequired: boolean;
+  jobId: string;
+  bidId: string;
+  homeownerPaymentId?: string | null;
+}
+
+export function toAcceptBidResponse(
+  bid: BidWithContractor,
+  extras: Omit<AcceptBidResponse, 'bid'>,
+): AcceptBidResponse {
+  return {
+    bid: toBidView(bid),
+    ...extras,
+  };
+}

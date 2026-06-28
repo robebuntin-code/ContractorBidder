@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -29,6 +30,12 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   createSession(@CurrentUser() user: AuthUser, @Body() dto: CreateSessionDto) {
     return this.payments.createSession(user.userId, dto);
+  }
+
+  @Get('acceptance-fee')
+  @UseGuards(JwtAuthGuard)
+  getAcceptanceFee(@CurrentUser() user: AuthUser, @Query('jobId', ParseUUIDPipe) jobId: string) {
+    return this.payments.getAcceptanceFeeStatus(user.userId, jobId);
   }
 
   @Get(':id')

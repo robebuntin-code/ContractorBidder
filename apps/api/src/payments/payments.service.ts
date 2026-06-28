@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  JobStatus,
   NotificationType,
   Payment,
   PaymentDirection,
@@ -19,7 +20,7 @@ import { FeatureFlagsService } from '../common/feature-flags.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 
-/** Acceptance fee charged to each side, in cents ($1.00). */
+/** Acceptance fee charged to the homeowner when accepting a bid, in cents ($1.00). */
 const ACCEPTANCE_FEE_CENTS = 100;
 
 export interface AcceptanceFeeParties {
@@ -27,6 +28,16 @@ export interface AcceptanceFeeParties {
   bidId: string;
   homeownerUserId: string;
   contractorUserId: string;
+  currency: string;
+}
+
+export interface AcceptanceFeeStatusResponse {
+  required: boolean;
+  status: 'NONE' | PaymentStatus;
+  jobId: string;
+  bidId?: string | null;
+  paymentId?: string | null;
+  amountCents: number;
   currency: string;
 }
 
@@ -54,25 +65,21 @@ export class PaymentsService {
     return this.flags.flags.paymentsEnabled;
   }
 
-  /** Create the two PENDING $1 acceptance-fee rows inside the accept transaction. */
+  /** Create the homeowner PENDING $1 acceptance-fee row inside the accept transaction. */
   async createAcceptanceFees(parties: AcceptanceFeeParties, tx: Prisma.TransactionClient) {
-    const base = {
-      jobId: parties.jobId,
-      bidId: parties.bidId,
-      amountCents: ACCEPTANCE_FEE_CENTS,
-      currency: parties.currency,
-      status: PaymentStatus.PENDING,
-    };
-    const [homeownerFee, contractorFee] = await Promise.all([
-      tx.payment.create({
-        data: { ...base, userId: parties.homeownerUserId, direction: PaymentDirection.HOMEOWNER_ACCEPT_FEE },
-      }),
-      tx.payment.create({
-        data: { ...base, userId: parties.contractorUserId, direction: PaymentDirection.CONTRACTOR_ACCEPT_FEE },
-      }),
-    ]);
-    this.logger.log(`Created acceptance fees for job ${parties.jobId}.`);
-    return { homeownerFee, contractorFee };
+    const homeownerFee = await tx.payment.create({
+      data: {
+        jobId: parties.jobId,
+        bidId: parties.bidId,
+        userId: parties.homeownerUserId,
+        amountCents: ACCEPTANCE_FEE_CENTS,
+        currency: parties.currency,
+        status: PaymentStatus.PENDING,
+        direction: PaymentDirection.HOMEOWNER_ACCEPT_FEE,
+      },
+    });
+    this.logger.log(`Created homeowner acceptance fee for job ${parties.jobId}.`);
+    return { homeownerFee };
   }
 
   /**
@@ -95,6 +102,12 @@ export class PaymentsService {
         message: 'STRIPE_SECRET_KEY is not configured on the server.',
       });
     }
+    if (input.direction !== PaymentDirection.HOMEOWNER_ACCEPT_FEE) {
+      throw new UnprocessableEntityException({
+        code: 'INVALID_PAYMENT_DIRECTION',
+        message: 'Only the homeowner acceptance fee can be paid through this flow.',
+      });
+    }
 
     const payment = await this.prisma.payment.findFirst({
       where: { userId, jobId: input.jobId, bidId: input.bidId, direction: input.direction },
@@ -112,6 +125,24 @@ export class PaymentsService {
       });
     }
 
+    if (payment.providerPaymentIntentId) {
+      const existing = await this.stripe.paymentIntents.retrieve(payment.providerPaymentIntentId);
+      if (existing.status === 'succeeded') {
+        throw new UnprocessableEntityException({
+          code: 'ALREADY_PAID',
+          message: 'This fee has already been paid.',
+        });
+      }
+      if (
+        existing.status === 'requires_payment_method' ||
+        existing.status === 'requires_confirmation' ||
+        existing.status === 'requires_action' ||
+        existing.status === 'processing'
+      ) {
+        return { paymentId: payment.id, clientSecret: existing.client_secret };
+      }
+    }
+
     const intent = await this.stripe.paymentIntents.create({
       amount: payment.amountCents,
       currency: payment.currency.toLowerCase(),
@@ -125,6 +156,50 @@ export class PaymentsService {
     });
 
     return { paymentId: payment.id, clientSecret: intent.client_secret };
+  }
+
+  async getAcceptanceFeeStatus(userId: string, jobId: string): Promise<AcceptanceFeeStatusResponse> {
+    const none: AcceptanceFeeStatusResponse = {
+      required: false,
+      status: 'NONE',
+      jobId,
+      amountCents: ACCEPTANCE_FEE_CENTS,
+      currency: 'USD',
+    };
+
+    if (!this.enabled) return none;
+
+    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) {
+      throw new NotFoundException({ code: 'JOB_NOT_FOUND', message: 'Job not found.' });
+    }
+    if (job.createdByUserId !== userId) {
+      throw new ForbiddenException({
+        code: 'NOT_JOB_OWNER',
+        message: 'Only the job owner can view acceptance fee status.',
+      });
+    }
+    if (job.status !== JobStatus.AWARDED || !job.acceptedBidId) return none;
+
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        jobId,
+        bidId: job.acceptedBidId,
+        userId,
+        direction: PaymentDirection.HOMEOWNER_ACCEPT_FEE,
+      },
+    });
+    if (!payment) return none;
+
+    return {
+      required: payment.status === PaymentStatus.PENDING,
+      status: payment.status,
+      jobId,
+      bidId: job.acceptedBidId,
+      paymentId: payment.id,
+      amountCents: payment.amountCents,
+      currency: payment.currency,
+    };
   }
 
   /** Verify + handle a Stripe webhook (raw body required for signature check). */
@@ -176,29 +251,34 @@ export class PaymentsService {
     await this.prisma.payment.update({ where: { id: payment.id }, data: { status } });
 
     if (status === PaymentStatus.SUCCEEDED) {
-      await this.onFeeSucceeded(payment);
+      await this.onHomeownerFeeSucceeded(payment);
     }
   }
 
-  /** When both acceptance fees for a job succeed, reveal the location to the winner. */
-  private async onFeeSucceeded(payment: Payment) {
-    const fees = await this.prisma.payment.findMany({
-      where: { jobId: payment.jobId, bidId: payment.bidId },
+  /** When the homeowner acceptance fee succeeds, reveal the location to the contractor. */
+  private async onHomeownerFeeSucceeded(payment: Payment) {
+    if (payment.direction !== PaymentDirection.HOMEOWNER_ACCEPT_FEE) return;
+
+    await this.audit.log({
+      action: 'LOCATION_REVEALED',
+      entity: 'job',
+      entityId: payment.jobId,
+      meta: { reason: 'homeowner_acceptance_fee_succeeded', bidId: payment.bidId },
     });
-    const bothSucceeded =
-      fees.length === 2 && fees.every((f) => f.status === PaymentStatus.SUCCEEDED);
-    if (!bothSucceeded) return;
 
     const bid = payment.bidId
       ? await this.prisma.bid.findUnique({ where: { id: payment.bidId } })
       : null;
     if (!bid) return;
 
-    await this.audit.log({
-      action: 'LOCATION_REVEALED',
-      entity: 'job',
-      entityId: payment.jobId,
-      meta: { reason: 'both_acceptance_fees_succeeded', bidId: payment.bidId },
+    await this.notifications.notify({
+      userId: payment.userId,
+      type: NotificationType.BID_ACCEPTED,
+      data: {
+        jobId: payment.jobId,
+        bidId: payment.bidId,
+        message: 'Payment complete. The contractor can now see the job address.',
+      },
     });
 
     await this.notifications.notify({
@@ -207,7 +287,7 @@ export class PaymentsService {
       data: {
         jobId: payment.jobId,
         bidId: payment.bidId,
-        message: 'Payment complete. The job address is now visible.',
+        message: 'The homeowner paid the acceptance fee. The job address is now visible.',
       },
     });
   }

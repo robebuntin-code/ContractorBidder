@@ -214,6 +214,32 @@ export interface BidView {
   createdAt: string;
 }
 
+/** Returned from POST /bids/:id/accept when payments may be required. */
+export interface AcceptBidResponse {
+  bid: BidView;
+  paymentRequired: boolean;
+  jobId: string;
+  bidId: string;
+  homeownerPaymentId?: string | null;
+}
+
+export interface PaymentSessionResponse {
+  paymentId: string;
+  clientSecret: string | null;
+}
+
+export type AcceptanceFeeStatusValue = 'NONE' | PaymentStatus;
+
+export interface AcceptanceFeeStatus {
+  required: boolean;
+  status: AcceptanceFeeStatusValue;
+  jobId: string;
+  bidId?: string | null;
+  paymentId?: string | null;
+  amountCents: number;
+  currency: string;
+}
+
 // --- Generic ----------------------------------------------------------------
 
 export interface Paginated<T> {

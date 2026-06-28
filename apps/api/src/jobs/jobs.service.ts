@@ -7,7 +7,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { Job, JobStatus, PaymentStatus, Prisma } from '../generated/prisma/client';
+import { Job, JobStatus, PaymentDirection, PaymentStatus, Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { FeatureFlagsService } from '../common/feature-flags.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
@@ -265,8 +265,15 @@ export class JobsService {
   /** Whether the precise location may be revealed to the accepted contractor. */
   private async revealAllowed(job: Job): Promise<boolean> {
     if (!this.flags.flags.paymentsEnabled) return true;
-    const fees = await this.prisma.payment.findMany({ where: { jobId: job.id, bidId: job.acceptedBidId } });
-    return fees.length === 2 && fees.every((f) => f.status === PaymentStatus.SUCCEEDED);
+    if (!job.acceptedBidId) return false;
+    const fee = await this.prisma.payment.findFirst({
+      where: {
+        jobId: job.id,
+        bidId: job.acceptedBidId,
+        direction: PaymentDirection.HOMEOWNER_ACCEPT_FEE,
+      },
+    });
+    return fee?.status === PaymentStatus.SUCCEEDED;
   }
 
   async findMine(user: AuthUser, req?: Request) {

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -11,7 +13,16 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { api, uploadToSignedUrl, type Bid, type ContractorReview, type JobFull, type Message } from '../api';
+import {
+  api,
+  uploadToSignedUrl,
+  type AcceptanceFeeStatus,
+  type Bid,
+  type ContractorReview,
+  type JobFull,
+  type Message,
+} from '../api';
+import { WEB_URL } from '../config';
 import { useAuth } from '../auth';
 import { useUnreadNotifications } from '../unreadNotifications';
 import { useRealtime } from '../realtime';
@@ -57,16 +68,32 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+  const [acceptanceFee, setAcceptanceFee] = useState<AcceptanceFeeStatus | null>(null);
+  const [acceptingBidId, setAcceptingBidId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const j = await api.getJob(jobId);
+      const [j, flags] = await Promise.all([
+        api.getJob(jobId),
+        api.getFlags().catch(() => ({ paymentsEnabled: false })),
+      ]);
+      setPaymentsEnabled(flags.paymentsEnabled);
       setJob({
         ...j,
         photos: resolvePhotoUrls(j.photos),
         photoComparisons: resolvePhotoComparisons(j.photoComparisons),
       });
+      if (user?.id === j.createdByUserId && j.status === 'AWARDED') {
+        try {
+          setAcceptanceFee(await api.getAcceptanceFeeStatus(jobId));
+        } catch {
+          setAcceptanceFee(null);
+        }
+      } else {
+        setAcceptanceFee(null);
+      }
       try {
         setBids(await api.listBids(jobId));
       } catch {
@@ -91,7 +118,7 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load job');
     }
-  }, [jobId]);
+  }, [jobId, user?.id]);
 
   useEffect(() => {
     void load();
@@ -169,15 +196,49 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
     }
   }
 
-  async function accept(bidId: string) {
+  async function completeAcceptancePayment() {
+    await Linking.openURL(`${WEB_URL}/jobs/${jobId}`);
+  }
+
+  async function acceptBidNow(bidId: string) {
+    setAcceptingBidId(bidId);
     setError(null);
     try {
-      await api.acceptBid(bidId);
-      setNotice('Bid accepted.');
+      const result = await api.acceptBid(bidId);
+      if (result.paymentRequired) {
+        setNotice('Bid accepted. Complete the $1 payment on the web to share your address.');
+        Alert.alert(
+          'Pay $1 acceptance fee',
+          'Open dojobid.com in your browser to pay the acceptance fee and share the job address with your contractor.',
+          [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Pay now', onPress: () => void completeAcceptancePayment() },
+          ],
+        );
+      } else {
+        setNotice('Bid accepted.');
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not accept bid');
+    } finally {
+      setAcceptingBidId(null);
     }
+  }
+
+  function accept(bidId: string) {
+    if (paymentsEnabled) {
+      Alert.alert(
+        'Accept this bid?',
+        'A $1 acceptance fee is required before the contractor can see your address.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Accept', onPress: () => void acceptBidNow(bidId) },
+        ],
+      );
+      return;
+    }
+    void acceptBidNow(bidId);
   }
 
   async function submitReview() {
@@ -420,6 +481,18 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
           </TouchableOpacity>
         )}
 
+        {isOwner && job.status === 'AWARDED' && acceptanceFee?.required ? (
+          <View style={[styles.card, { marginTop: 12, backgroundColor: '#fffbeb' }]}>
+            <Text style={styles.subtitle}>Payment required</Text>
+            <Text style={[styles.muted, { marginBottom: 12 }]}>
+              Pay the $1 acceptance fee so your contractor can see the job address.
+            </Text>
+            <TouchableOpacity style={styles.button} onPress={() => void completeAcceptancePayment()}>
+              <Text style={styles.buttonText}>Pay $1 on web</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         {awardedContractorId && (
           <View style={[styles.card, { marginTop: 12, backgroundColor: '#eff6ff' }]}>
             <Text style={styles.subtitle}>Awarded contractor</Text>
@@ -479,18 +552,25 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
         )}
 
         {job.photos.length > 0 && (
-          <View style={{ marginTop: 12 }}>
-            <Text style={[styles.muted, { marginBottom: 8 }]}>Photos</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {job.photos.map((uri) => (
-                <RemotePhoto
-                  key={uri}
-                  uri={uri}
-                  style={{ width: 220, height: 150, borderRadius: 12 }}
-                  containerStyle={{ width: 220, height: 150, borderRadius: 12, overflow: 'hidden' }}
-                />
-              ))}
-            </View>
+          <View style={{ marginTop: 12, gap: 12 }}>
+            <Text style={[styles.muted, { marginBottom: 0 }]}>Photos</Text>
+            {job.photos.map((uri) => (
+              <RemotePhoto
+                key={uri}
+                uri={uri}
+                style={{ width: '100%', height: '100%' }}
+                containerStyle={{
+                  width: '100%',
+                  height: 280,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.bg,
+                }}
+                resizeMode="contain"
+              />
+            ))}
           </View>
         )}
 
@@ -500,11 +580,16 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
             <Text style={{ marginTop: 8, color: colors.text }}>📍 {job.addressText}</Text>
           ) : job.postalCode ? (
             <Text style={[styles.muted, { marginTop: 8 }]}>
-              📍 ZIP {job.postalCode} — exact address revealed after your bid is accepted.
+              📍 ZIP {job.postalCode} —{' '}
+              {job.status === 'AWARDED' && paymentsEnabled
+                ? 'exact address appears after the homeowner pays the $1 acceptance fee.'
+                : 'exact address revealed after your bid is accepted.'}
             </Text>
           ) : (
             <Text style={[styles.muted, { marginTop: 8 }]}>
-              Exact address revealed after your bid is accepted.
+              {job.status === 'AWARDED' && paymentsEnabled
+                ? 'Exact address appears after the homeowner pays the $1 acceptance fee.'
+                : 'Exact address revealed after your bid is accepted.'}
             </Text>
           )}
         </View>
@@ -602,8 +687,18 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
                 )}
                 {bid.message ? <Text style={{ color: colors.text, marginTop: 2 }}>{bid.message}</Text> : null}
                 {job.status === 'OPEN' && bid.status === 'PENDING' && (
-                  <TouchableOpacity style={[styles.button, { marginTop: 8 }]} onPress={() => accept(bid.id)}>
-                    <Text style={styles.buttonText}>Accept this bid</Text>
+                  <TouchableOpacity
+                    style={[styles.button, { marginTop: 8, opacity: acceptingBidId === bid.id ? 0.6 : 1 }]}
+                    onPress={() => accept(bid.id)}
+                    disabled={acceptingBidId === bid.id}
+                  >
+                    <Text style={styles.buttonText}>
+                      {acceptingBidId === bid.id
+                        ? 'Accepting…'
+                        : paymentsEnabled
+                          ? 'Accept bid ($1 fee)'
+                          : 'Accept this bid'}
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>

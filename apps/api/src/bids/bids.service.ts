@@ -12,7 +12,7 @@ import { PaymentsService } from '../payments/payments.service';
 import { AuditService } from '../audit/audit.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CreateBidDto } from './dto/bid.dto';
-import { toBidView } from './bid.serializer';
+import { toAcceptBidResponse, toBidView } from './bid.serializer';
 
 @Injectable()
 export class BidsService {
@@ -169,7 +169,7 @@ export class BidsService {
   /**
    * Accept a bid. Runs in a transaction: marks the bid ACCEPTED, awards the job,
    * auto-declines the other pending bids, and (if payments are enabled) creates
-   * the two acceptance-fee rows. Precise location reveal is gated on payment in
+   * the homeowner acceptance-fee row. Precise location reveal is gated on payment in
    * jobs.service; with payments off it's revealed immediately to the winner.
    */
   async accept(user: AuthUser, bidId: string) {
@@ -215,8 +215,9 @@ export class BidsService {
       });
 
       const paymentsEnabled = this.payments.enabled;
+      let homeownerFeeId: string | null = null;
       if (paymentsEnabled) {
-        await this.payments.createAcceptanceFees(
+        const { homeownerFee } = await this.payments.createAcceptanceFees(
           {
             jobId: job.id,
             bidId: bid.id,
@@ -226,6 +227,7 @@ export class BidsService {
           },
           tx,
         );
+        homeownerFeeId = homeownerFee.id;
       }
 
       await this.audit.log(
@@ -239,18 +241,27 @@ export class BidsService {
         tx,
       );
 
-      return { job, acceptedBid, paymentsEnabled };
+      return { job, acceptedBid, paymentsEnabled, homeownerFeeId };
     });
 
-    // Notifications happen after commit so we never notify on a rolled-back tx.
     if (result.paymentsEnabled) {
       await this.notifications.notify({
-        userId: result.acceptedBid.contractorUserId,
+        userId: result.job.createdByUserId,
         type: NotificationType.PAYMENT_REQUIRED,
         data: {
           jobId: result.job.id,
           bidId: result.acceptedBid.id,
-          message: 'Your bid was accepted. Complete the $1 fee to view the address.',
+          message: 'Pay the $1 acceptance fee to share the job address with your contractor.',
+        },
+      });
+      await this.notifications.notify({
+        userId: result.acceptedBid.contractorUserId,
+        type: NotificationType.BID_ACCEPTED,
+        data: {
+          jobId: result.job.id,
+          bidId: result.acceptedBid.id,
+          message:
+            'Your bid was accepted. The address will appear once the homeowner pays the $1 acceptance fee.',
         },
       });
     } else {
@@ -265,6 +276,11 @@ export class BidsService {
       });
     }
 
-    return toBidView(result.acceptedBid);
+    return toAcceptBidResponse(result.acceptedBid, {
+      paymentRequired: result.paymentsEnabled,
+      jobId: result.job.id,
+      bidId: result.acceptedBid.id,
+      homeownerPaymentId: result.homeownerFeeId,
+    });
   }
 }

@@ -20,6 +20,15 @@ async function bootstrap(): Promise<void> {
   });
 
   app.use(
+    '/api/v1/payments/webhook/stripe',
+    raw({ type: 'application/json', limit: '1mb' }),
+    (req, _res, next) => {
+      (req as Request & { rawBody?: Buffer }).rawBody = req.body as Buffer;
+      next();
+    },
+  );
+
+  app.use(
     json({
       verify: (req, _res, buf) => {
         (req as Request & { rawBody?: Buffer }).rawBody = buf;

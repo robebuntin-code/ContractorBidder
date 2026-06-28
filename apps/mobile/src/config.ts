@@ -4,6 +4,7 @@
  */
 const PRODUCTION_API_URL = 'https://dojobid-api-production.up.railway.app/api/v1';
 const PRODUCTION_MEDIA_BASE = 'https://dojobid.com/api/v1/dev-media';
+const PRODUCTION_WEB_URL = 'https://dojobid.com';
 
 function isLocalApi(url: string): boolean {
   return /localhost|127\.0\.0\.1|192\.168\.|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\./.test(url);
@@ -18,3 +19,6 @@ export const MEDIA_BASE_URL =
   (isLocalApi(API_URL)
     ? `${API_URL.replace(/\/api\/v1\/?$/, '')}/api/v1/dev-media`
     : PRODUCTION_MEDIA_BASE);
+
+/** Web app base URL — used for bid acceptance payments on mobile. */
+export const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL?.trim() || PRODUCTION_WEB_URL;

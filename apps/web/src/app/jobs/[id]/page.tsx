@@ -12,6 +12,8 @@ import {
   type PendingMessagePhoto,
 } from '@/components/MessageComposer';
 import { api, uploadToSignedUrl, type BidWithContractor, type MessageView } from '@/lib/api';
+import AcceptBidPaymentModal from '@/components/AcceptBidPaymentModal';
+import type { AcceptanceFeeStatus } from '@contractor-bidder/types';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
 import { JobScopeComparisons } from '@/components/JobScopeComparisons';
 import { inferImageContentType, imageExtensionForContentType } from '@/lib/uploadUtils';
@@ -51,15 +53,33 @@ export default function JobDetailPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+  const [acceptanceFee, setAcceptanceFee] = useState<AcceptanceFeeStatus | null>(null);
+  const [paymentModal, setPaymentModal] = useState<{ jobId: string; bidId: string } | null>(null);
+  const [acceptingBidId, setAcceptingBidId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!jobId) return;
     setError(null);
     setLoaded(false);
     try {
-      const [meRes, jobRes] = await Promise.all([api.me(), api.getJob(jobId)]);
+      const [meRes, jobRes, flagsRes] = await Promise.all([
+        api.me(),
+        api.getJob(jobId),
+        api.getFlags().catch(() => ({ paymentsEnabled: false })),
+      ]);
       setMe(meRes);
       setJob(jobRes);
+      setPaymentsEnabled(flagsRes.paymentsEnabled);
+      if (meRes.id === jobRes.createdByUserId && jobRes.status === 'AWARDED') {
+        try {
+          setAcceptanceFee(await api.getAcceptanceFeeStatus(jobId));
+        } catch {
+          setAcceptanceFee(null);
+        }
+      } else {
+        setAcceptanceFee(null);
+      }
       try {
         setBids(await api.listBids(jobId));
       } catch {
@@ -235,15 +255,36 @@ export default function JobDetailPage() {
   }
 
   async function accept(bidId: string) {
+    if (
+      paymentsEnabled &&
+      !window.confirm(
+        'Accept this bid? A $1 acceptance fee is required before the contractor can see your address.',
+      )
+    ) {
+      return;
+    }
     setError(null);
     setNotice(null);
+    setAcceptingBidId(bidId);
     try {
-      await api.acceptBid(bidId);
-      setNotice('Bid accepted. The job is now awarded.');
+      const result = await api.acceptBid(bidId);
+      if (result.paymentRequired) {
+        setPaymentModal({ jobId: result.jobId, bidId: result.bidId });
+        setNotice('Bid accepted. Complete the $1 payment to share your address.');
+      } else {
+        setNotice('Bid accepted. The job is now awarded.');
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not accept bid');
+    } finally {
+      setAcceptingBidId(null);
     }
+  }
+
+  function openAcceptancePayment() {
+    if (!jobId || !job?.acceptedBidId) return;
+    setPaymentModal({ jobId, bidId: job.acceptedBidId });
   }
 
   async function submitReview() {
@@ -299,6 +340,18 @@ export default function JobDetailPage() {
 
   return (
     <div>
+      {paymentModal ? (
+        <AcceptBidPaymentModal
+          jobId={paymentModal.jobId}
+          bidId={paymentModal.bidId}
+          onClose={() => setPaymentModal(null)}
+          onPaid={() => {
+            setPaymentModal(null);
+            setNotice('Payment complete. The contractor can now see the job address.');
+            void load();
+          }}
+        />
+      ) : null}
       <span className="badge">{formatWorkType(job.workType)}</span>
       <p className="job-title" style={{ fontSize: 22 }}>{job.title}</p>
       <p className="muted">
@@ -316,6 +369,18 @@ export default function JobDetailPage() {
           Edit job
         </Link>
       )}
+
+      {isOwner && job.status === 'AWARDED' && acceptanceFee?.required ? (
+        <div className="card accept-payment-banner">
+          <h3 style={{ marginTop: 0 }}>Payment required</h3>
+          <p className="muted" style={{ marginBottom: 12 }}>
+            Pay the $1 acceptance fee so your contractor can see the job address.
+          </p>
+          <button type="button" className="btn-primary" onClick={openAcceptancePayment}>
+            Pay $1.00
+          </button>
+        </div>
+      ) : null}
 
       {awardedContractorId && (
         <div className="card" style={{ background: '#eff6ff', borderColor: '#93c5fd' }}>
@@ -398,12 +463,16 @@ export default function JobDetailPage() {
           </p>
         ) : job.postalCode ? (
           <p className="muted">
-            <strong>Area:</strong> ZIP {job.postalCode}. The exact address is revealed after the
-            homeowner accepts your bid.
+            <strong>Area:</strong> ZIP {job.postalCode}.{' '}
+            {job.status === 'AWARDED' && paymentsEnabled
+              ? 'The exact address appears after the homeowner pays the $1 acceptance fee.'
+              : 'The exact address is revealed after the homeowner accepts your bid.'}
           </p>
         ) : (
           <p className="muted">
-            The exact address is revealed after the homeowner accepts your bid.
+            {job.status === 'AWARDED' && paymentsEnabled
+              ? 'The exact address appears after the homeowner pays the $1 acceptance fee.'
+              : 'The exact address is revealed after the homeowner accepts your bid.'}
           </p>
         )}
       </div>
@@ -510,7 +579,17 @@ export default function JobDetailPage() {
               )}
               {bid.message && <p>{bid.message}</p>}
               {job.status === 'OPEN' && bid.status === 'PENDING' && (
-                <button onClick={() => accept(bid.id)}>Accept this bid</button>
+                <button
+                  type="button"
+                  disabled={acceptingBidId === bid.id}
+                  onClick={() => void accept(bid.id)}
+                >
+                  {acceptingBidId === bid.id
+                    ? 'Accepting…'
+                    : paymentsEnabled
+                      ? 'Accept bid ($1 fee)'
+                      : 'Accept this bid'}
+                </button>
               )}
             </div>
           ))}

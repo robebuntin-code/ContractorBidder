@@ -1,4 +1,6 @@
 import type {
+  AcceptBidResponse,
+  AcceptanceFeeStatus,
   AuthResponse,
   BidCreateDto,
   BidView,
@@ -13,6 +15,7 @@ import type {
   LoginDto,
   MeView,
   Paginated,
+  PaymentSessionResponse,
   PublicUser,
   RegisterDto,
   UpdateMeDto,
@@ -217,7 +220,22 @@ export const api = {
     request<BidView>(`/jobs/${jobId}/bids`, { method: 'POST', body: JSON.stringify(dto) }),
 
   acceptBid: (bidId: string) =>
-    request<BidView>(`/bids/${bidId}/accept`, { method: 'POST' }),
+    request<AcceptBidResponse>(`/bids/${bidId}/accept`, { method: 'POST' }),
+
+  createPaymentSession: (input: {
+    jobId: string;
+    bidId: string;
+    direction: 'HOMEOWNER_ACCEPT_FEE';
+  }) =>
+    request<PaymentSessionResponse>('/payments/session', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  getAcceptanceFeeStatus: (jobId: string) =>
+    request<AcceptanceFeeStatus>(`/payments/acceptance-fee?jobId=${encodeURIComponent(jobId)}`),
+
+  getPayment: (paymentId: string) => request<PaymentRecord>(`/payments/${paymentId}`),
 
   getJobReview: (jobId: string) => request<ContractorReviewView | null>(`/jobs/${jobId}/review`),
 
@@ -339,6 +357,21 @@ export interface ContractorProfile {
 }
 
 export type { ContractorPublicProfile, ContractorPublicReviewView, ContractorReviewView, MeView };
+
+export interface PaymentRecord {
+  id: string;
+  userId: string;
+  jobId: string;
+  bidId: string | null;
+  amountCents: number;
+  currency: string;
+  direction: string;
+  status: string;
+  provider: string;
+  providerPaymentIntentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface MessageView {
   id: string;
