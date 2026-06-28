@@ -141,7 +141,12 @@ export class BidsService {
         : undefined,
     });
 
-    return bids.map((b) => toBidView(b, isOwner));
+    return bids.map((b, index) =>
+      toBidView(b, isOwner, {
+        anonymousLabel: `Contractor #${index + 1}`,
+        revealIdentity: b.status === BidStatus.ACCEPTED,
+      }),
+    );
   }
 
   async withdraw(user: AuthUser, bidId: string) {
@@ -244,6 +249,11 @@ export class BidsService {
       return { job, acceptedBid, paymentsEnabled, homeownerFeeId };
     });
 
+    const acceptedWithProfile = await this.prisma.bid.findUnique({
+      where: { id: result.acceptedBid.id },
+      include: { contractor: { include: { contractorProfile: true } } },
+    });
+
     if (result.paymentsEnabled) {
       await this.notifications.notify({
         userId: result.job.createdByUserId,
@@ -276,11 +286,15 @@ export class BidsService {
       });
     }
 
-    return toAcceptBidResponse(result.acceptedBid, {
-      paymentRequired: result.paymentsEnabled,
-      jobId: result.job.id,
-      bidId: result.acceptedBid.id,
-      homeownerPaymentId: result.homeownerFeeId,
-    });
+    return toAcceptBidResponse(
+      acceptedWithProfile ?? result.acceptedBid,
+      {
+        paymentRequired: result.paymentsEnabled,
+        jobId: result.job.id,
+        bidId: result.acceptedBid.id,
+        homeownerPaymentId: result.homeownerFeeId,
+      },
+      { revealIdentity: true },
+    );
   }
 }

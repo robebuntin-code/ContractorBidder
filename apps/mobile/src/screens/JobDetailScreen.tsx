@@ -169,10 +169,7 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
   const awardedContractorName = (() => {
     if (!awardedContractorId) return null;
     if (acceptedBid?.contractor) {
-      return (
-        acceptedBid.contractor.companyName ??
-        `${acceptedBid.contractor.firstName} ${acceptedBid.contractor.lastName}`
-      );
+      return acceptedBid.contractor.displayName;
     }
     if (user.id === awardedContractorId) {
       return `${user.firstName} ${user.lastName}`;
@@ -620,7 +617,7 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
                     }}
                   >
                     <Text style={{ color: activeCounterpart === id ? '#fff' : colors.text, fontSize: 12 }}>
-                      {bids.find((b) => b.contractorUserId === id)?.contractor?.companyName ??
+                      {bids.find((b) => b.contractorUserId === id)?.contractor?.displayName ??
                         `Contractor ${id.slice(0, 8)}`}
                     </Text>
                   </TouchableOpacity>
@@ -680,9 +677,8 @@ export default function JobDetailScreen({ route, navigation }: NativeStackScreen
                 </Text>
                 {bid.contractor && (
                   <Text style={styles.muted}>
-                    {bid.contractor.companyName ??
-                      `${bid.contractor.firstName} ${bid.contractor.lastName}`}{' '}
-                    · ⭐ {bid.contractor.ratingAgg} ({bid.contractor.ratingCount})
+                    {bid.contractor.displayName} · ⭐ {bid.contractor.ratingAgg} (
+                    {bid.contractor.ratingCount})
                   </Text>
                 )}
                 {bid.message ? <Text style={{ color: colors.text, marginTop: 2 }}>{bid.message}</Text> : null}

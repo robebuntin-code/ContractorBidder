@@ -115,8 +115,10 @@ export interface Bid {
   status: string;
   createdAt: string;
   contractor?: {
-    firstName: string;
-    lastName: string;
+    displayName: string;
+    identityRevealed: boolean;
+    firstName: string | null;
+    lastName: string | null;
     companyName: string | null;
     ratingAgg: number;
     ratingCount: number;

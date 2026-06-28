@@ -4,6 +4,7 @@ import type {
   AuthResponse,
   BidCreateDto,
   BidView,
+  BidWithContractorView,
   ContractorPublicProfile,
   ContractorPublicReviewView,
   ContractorReviewView,
@@ -435,13 +436,4 @@ export interface AdminUser {
   createdAt: string;
 }
 
-export type BidWithContractor = BidView & {
-  contractor?: {
-    firstName: string;
-    lastName: string;
-    companyName: string | null;
-    ratingAgg: number;
-    ratingCount: number;
-    googleReviewsUrl: string | null;
-  };
-};
+export type BidWithContractor = BidWithContractorView;

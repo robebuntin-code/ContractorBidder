@@ -158,10 +158,7 @@ export default function JobDetailPage() {
   const awardedContractorName = (() => {
     if (!awardedContractorId) return null;
     if (acceptedBid?.contractor) {
-      return (
-        acceptedBid.contractor.companyName ??
-        `${acceptedBid.contractor.firstName} ${acceptedBid.contractor.lastName}`
-      );
+      return acceptedBid.contractor.displayName;
     }
     if (me.id === awardedContractorId) {
       return `${me.firstName} ${me.lastName}`;
@@ -564,10 +561,9 @@ export default function JobDetailPage() {
               <span className="badge">{bid.status}</span>
               {bid.contractor && (
                 <p className="muted" style={{ margin: '6px 0' }}>
-                  {bid.contractor.companyName ??
-                    `${bid.contractor.firstName} ${bid.contractor.lastName}`}{' '}
-                  · ⭐ {bid.contractor.ratingAgg} ({bid.contractor.ratingCount})
-                  {bid.contractor.googleReviewsUrl && (
+                  {bid.contractor.displayName} · ⭐ {bid.contractor.ratingAgg} (
+                  {bid.contractor.ratingCount})
+                  {bid.contractor.identityRevealed && bid.contractor.googleReviewsUrl && (
                     <>
                       {' · '}
                       <a href={bid.contractor.googleReviewsUrl} target="_blank" rel="noreferrer">
@@ -608,7 +604,7 @@ export default function JobDetailPage() {
               >
                 {counterpartOptions.map((id) => (
                   <option key={id} value={id}>
-                    {bids.find((b) => b.contractorUserId === id)?.contractor?.companyName ??
+                    {bids.find((b) => b.contractorUserId === id)?.contractor?.displayName ??
                       `Contractor ${id.slice(0, 8)}`}
                   </option>
                 ))}

@@ -214,9 +214,25 @@ export interface BidView {
   createdAt: string;
 }
 
+/** Contractor preview on a bid — identity masked until the bid is accepted. */
+export interface BidContractorPreview {
+  displayName: string;
+  identityRevealed: boolean;
+  firstName: string | null;
+  lastName: string | null;
+  companyName: string | null;
+  ratingAgg: number;
+  ratingCount: number;
+  googleReviewsUrl: string | null;
+}
+
+export type BidWithContractorView = BidView & {
+  contractor?: BidContractorPreview;
+};
+
 /** Returned from POST /bids/:id/accept when payments may be required. */
 export interface AcceptBidResponse {
-  bid: BidView;
+  bid: BidWithContractorView;
   paymentRequired: boolean;
   jobId: string;
   bidId: string;
