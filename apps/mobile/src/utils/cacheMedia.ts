@@ -66,8 +66,15 @@ async function fetchToCache(remoteUrl: string): Promise<string> {
   return writeCachedFile(localPath, await response.arrayBuffer());
 }
 
+function isLocalMediaUri(url: string): boolean {
+  return /^(file|content|ph|assets-library|data|blob):/i.test(url.trim());
+}
+
 /** Download remote media to a local file:// URI for reliable Image display on iOS. */
 export async function cacheRemoteMedia(remoteUrl: string): Promise<string> {
+  const trimmed = remoteUrl.trim();
+  if (isLocalMediaUri(trimmed)) return trimmed;
+
   const candidates = mediaDownloadCandidates(remoteUrl);
   if (!candidates.length) throw new Error('Missing media URL');
 

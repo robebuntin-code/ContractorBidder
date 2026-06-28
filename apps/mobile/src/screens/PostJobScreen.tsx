@@ -433,10 +433,12 @@ export default function PostJobScreen({
 
         <Text style={local.fieldLabel}>Photos</Text>
         <Text style={local.fieldHint}>
-          Optional — reference photos and before/after scope images help contractors understand the job.
+          Add reference photos. Use <Text style={local.fieldHintStrong}>AI scope</Text> on a photo to create a
+          before/after vision.
         </Text>
 
         <ScopeComparisonDraftList
+          compact
           items={scopeComparisons}
           onRemove={(id) => setScopeComparisons((prev) => prev.filter((s) => s.id !== id))}
         />
@@ -469,7 +471,7 @@ export default function PostJobScreen({
               disabled={uploading || busy}
               style={local.photoAdd}
             >
-              <Text style={local.photoAddText}>{uploading ? '…' : '+ Add photo'}</Text>
+              <Text style={local.photoAddText}>{uploading ? '…' : '+ Photo'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -735,6 +737,7 @@ const local = StyleSheet.create({
   },
   fieldLabel: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 10, marginBottom: 6 },
   fieldHint: { fontSize: 13, color: colors.muted, marginBottom: 8, lineHeight: 18 },
+  fieldHintStrong: { fontWeight: '700', color: colors.text },
   input: {
     borderWidth: 1,
     borderColor: colors.border,

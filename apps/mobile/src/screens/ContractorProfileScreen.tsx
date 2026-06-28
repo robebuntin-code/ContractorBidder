@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Linking,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { api, type ContractorProfile, type ContractorPublicReview } from '../api';
+import RemotePhoto from '../components/RemotePhoto';
 import { colors, formatWorkType, SERVICE_TYPE_OPTIONS, styles } from '../theme';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SharedStackParamList } from '../navTypes';
@@ -126,7 +126,17 @@ export default function ContractorProfileScreen({ route }: NativeStackScreenProp
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={local.hero}>
         {logoUri ? (
-          <Image source={{ uri: logoUri }} style={local.avatarImage} resizeMode="cover" />
+          <RemotePhoto
+            uri={logoUri}
+            style={local.avatarImage}
+            containerStyle={local.avatarImage}
+            resizeMode="cover"
+            fallback={
+              <View style={local.avatar}>
+                <Text style={local.avatarText}>{initials(profile.firstName, profile.lastName)}</Text>
+              </View>
+            }
+          />
         ) : (
           <View style={local.avatar}>
             <Text style={local.avatarText}>{initials(profile.firstName, profile.lastName)}</Text>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -18,6 +18,8 @@ interface RemotePhotoProps {
   style?: StyleProp<ImageStyle>;
   containerStyle?: StyleProp<ViewStyle>;
   resizeMode?: ImageResizeMode;
+  /** Shown when download fails (e.g. initials for profile logos). */
+  fallback?: ReactNode;
 }
 
 /** Remote job/profile photo — cached locally before display (direct HTTPS often fails in Expo Go). */
@@ -26,11 +28,15 @@ export default function RemotePhoto({
   style,
   containerStyle,
   resizeMode = 'cover',
+  fallback,
 }: RemotePhotoProps) {
+  const isLocalUri = /^(file|content|ph|assets-library|data|blob):/i.test(uri.trim());
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    if (isLocalUri) return;
+
     let cancelled = false;
     setLocalUri(null);
     setFailed(false);
@@ -49,7 +55,15 @@ export default function RemotePhoto({
     return () => {
       cancelled = true;
     };
-  }, [uri]);
+  }, [uri, isLocalUri]);
+
+  if (isLocalUri) {
+    return (
+      <View style={[local.wrap, containerStyle]}>
+        <Image source={{ uri }} style={style} resizeMode={resizeMode} />
+      </View>
+    );
+  }
 
   return (
     <View style={[local.wrap, containerStyle]}>
@@ -62,12 +76,14 @@ export default function RemotePhoto({
         </View>
       ) : null}
       {failed ? (
-        <View style={[local.placeholder, local.fallback, style]}>
-          <Text style={local.fallbackText}>
-            Photo unavailable{'\n'}
-            <Text style={local.fallbackHint}>Re-upload if this job was posted before today.</Text>
-          </Text>
-        </View>
+        fallback ?? (
+          <View style={[local.placeholder, local.fallback, style]}>
+            <Text style={local.fallbackText}>
+              Photo unavailable{'\n'}
+              <Text style={local.fallbackHint}>Re-upload if this job was posted before today.</Text>
+            </Text>
+          </View>
+        )
       ) : null}
     </View>
   );

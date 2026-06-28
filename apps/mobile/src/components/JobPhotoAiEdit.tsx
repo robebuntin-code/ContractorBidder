@@ -126,21 +126,21 @@ export function JobPhotoAiEditModal({
 
         <ScrollView contentContainerStyle={local.content} keyboardShouldPersistTaps="handled">
           <Text style={local.hint}>
-            Describe how you want the work to look when it&apos;s done. We&apos;ll add a before/after pair
-            to your job so contractors understand the scope.
+            Describe how you want the work to look when it&apos;s done. We&apos;ll create a before/after pair
+            contractors can review to understand the scope.
           </Text>
 
-          <View style={local.compareRow}>
-            <View style={local.compareCol}>
+          <View style={local.compareCol}>
+            <View style={local.compareBlock}>
               <Text style={local.caption}>Original</Text>
               {target ? (
-                <Image source={{ uri: target.previewUri }} style={local.preview} resizeMode="cover" />
+                <Image source={{ uri: target.previewUri }} style={local.preview} resizeMode="contain" />
               ) : null}
             </View>
-            <View style={local.compareCol}>
-              <Text style={local.caption}>AI preview</Text>
+            <View style={local.compareBlock}>
+              <Text style={local.caption}>{editedPreview ? 'AI preview' : 'Preview'}</Text>
               {editedPreview ? (
-                <Image source={{ uri: editedPreview }} style={local.preview} resizeMode="cover" />
+                <Image source={{ uri: editedPreview }} style={local.preview} resizeMode="contain" />
               ) : (
                 <View style={local.previewPlaceholder}>
                   {busy ? (
@@ -176,14 +176,16 @@ export function JobPhotoAiEditModal({
             onPress={() => void generate()}
             disabled={busy}
           >
-            <Text style={local.btnSecondaryText}>{busy ? 'Generating…' : editedPreview ? 'Regenerate' : 'Generate'}</Text>
+            <Text style={local.btnSecondaryText}>
+              {busy ? 'Generating…' : editedPreview ? 'Regenerate' : 'Generate preview'}
+            </Text>
           </Pressable>
           <Pressable
             style={[local.btn, local.btnPrimary, (!editedKey || busy) && local.btnDisabled]}
             onPress={useEdited}
-            disabled={busy || !editedKey}
+            disabled={busy || !editedKey || !editedPreview}
           >
-            <Text style={local.btnPrimaryText}>Add before & after</Text>
+            <Text style={local.btnPrimaryText}>Use before & after on job</Text>
           </Pressable>
         </View>
       </View>
@@ -211,7 +213,7 @@ export function JobPhotoAiEditButton({
 
   return (
     <TouchableOpacity style={local.badge} onPress={onPress} disabled={disabled}>
-      <Text style={local.badgeText}>Scope</Text>
+      <Text style={local.badgeText}>AI scope</Text>
     </TouchableOpacity>
   );
 }
@@ -225,24 +227,37 @@ const local = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text, flex: 1 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.text, flex: 1, paddingRight: 8 },
   close: { fontSize: 28, color: colors.muted, lineHeight: 28 },
   content: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   hint: { fontSize: 14, lineHeight: 20, color: colors.muted },
-  compareRow: { flexDirection: 'row', gap: 10 },
-  compareCol: { flex: 1, gap: 6 },
-  caption: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase' },
-  preview: { width: '100%', height: 140, borderRadius: 10, backgroundColor: colors.border },
+  compareCol: { gap: 12, marginVertical: 4 },
+  compareBlock: { gap: 6 },
+  caption: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  preview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   previewPlaceholder: {
     width: '100%',
-    height: 140,
+    height: 180,
     borderRadius: 10,
     backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
+    padding: 12,
   },
-  placeholderText: { fontSize: 12, color: colors.muted, textAlign: 'center' },
+  placeholderText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
   label: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4 },
   input: {
     borderWidth: 1,
@@ -255,11 +270,12 @@ const local = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
-  error: { fontSize: 13, color: '#b91c1c' },
+  error: { fontSize: 14, color: '#b91c1c' },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingTop: 8,
   },
@@ -277,12 +293,12 @@ const local = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
   badge: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
+    bottom: 6,
+    left: 6,
     backgroundColor: colors.primary,
     borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });

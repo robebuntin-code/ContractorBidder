@@ -3,7 +3,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,13 +18,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, uploadToSignedUrl } from '../api';
 import { useAuth } from '../auth';
+import RemotePhoto from '../components/RemotePhoto';
 import ProfileFieldRow from '../components/profile/ProfileFieldRow';
 import { accountStyles as s } from '../components/profile/accountStyles';
 import { colors, formatRole, SERVICE_TYPE_OPTIONS } from '../theme';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ProfileStackParamList } from '../navTypes';
-import { formatGeocodedAddress } from '../utils/addressFormat';
-import { resolveMediaUrl } from '../utils/mediaUrl';
+import { formatGeocodedAddress, normalizeAddressDisplay } from '../utils/addressFormat';
+import { extractMediaKey, resolveMediaUrl } from '../utils/mediaUrl';
 import { formatPhoneDisplay, formatPhoneInput, phoneDigits, phoneForStorage } from '../utils/phoneFormat';
 
 const RADIUS_MILES = [10, 25, 50] as const;
@@ -188,7 +188,7 @@ export default function ProfileScreen(_props: NativeStackScreenProps<ProfileStac
       const profile = await api.myContractorProfile();
       setHasProfile(true);
       setCompanyName(profile.companyName ?? '');
-      setLogoUrl(profile.logoUrl ?? null);
+      setLogoUrl(profile.logoUrl ? extractMediaKey(profile.logoUrl) ?? profile.logoUrl : null);
       setLogoPreviewUri(profile.logoUrl ? resolveMediaUrl(profile.logoUrl) : null);
       setPhone(formatPhoneDisplay(profile.phone));
       setBusinessAddress(profile.businessAddress ?? '');
@@ -292,25 +292,32 @@ export default function ProfileScreen(_props: NativeStackScreenProps<ProfileStac
 
   async function geocodeServiceArea(
     trimmed: string,
-  ): Promise<{ lat: number; lng: number } | null> {
+  ): Promise<{ lat: number; lng: number; label: string } | null> {
+    const normalized = normalizeAddressDisplay(trimmed);
     try {
-      const results = await Location.geocodeAsync(trimmed);
-      if (!results.length) {
-        setError('Address not found. Try adding city and state, e.g. "123 Main St, Atlanta, GA".');
-        return null;
-      }
-      return { lat: results[0].latitude, lng: results[0].longitude };
-    } catch {
-      setError('Could not look up that address. Try a more complete address.');
+      const result = await api.geocodeAddress(normalized);
+      return {
+        lat: result.lat,
+        lng: result.lng,
+        label: normalizeAddressDisplay(result.label),
+      };
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not look up that address.');
       return null;
     }
   }
 
   /** Resolve coords from the address field, or fall back to coords already set via GPS. */
   async function resolveServiceAreaForSave(): Promise<{ lat: number; lng: number } | null> {
-    const trimmed = serviceAreaAddress.trim();
+    const trimmed = normalizeAddressDisplay(serviceAreaAddress);
     if (trimmed.length >= 3) {
-      return geocodeServiceArea(trimmed);
+      const coords = await geocodeServiceArea(trimmed);
+      if (!coords) return null;
+      setBaseLat(coords.lat);
+      setBaseLng(coords.lng);
+      setLocationLabel(coords.label);
+      setServiceAreaAddress(coords.label);
+      return { lat: coords.lat, lng: coords.lng };
     }
     if (baseLat != null && baseLng != null) {
       return { lat: baseLat, lng: baseLng };
@@ -320,7 +327,7 @@ export default function ProfileScreen(_props: NativeStackScreenProps<ProfileStac
   }
 
   async function applyServiceAreaAddress() {
-    const trimmed = serviceAreaAddress.trim();
+    const trimmed = normalizeAddressDisplay(serviceAreaAddress);
     if (trimmed.length < 3) {
       setError('Enter an address with city and state for your service area.');
       return;
@@ -332,8 +339,8 @@ export default function ProfileScreen(_props: NativeStackScreenProps<ProfileStac
       if (!coords) return;
       setBaseLat(coords.lat);
       setBaseLng(coords.lng);
-      setLocationLabel(trimmed);
-      setServiceAreaAddress(trimmed);
+      setLocationLabel(coords.label);
+      setServiceAreaAddress(coords.label);
     } finally {
       setServiceAreaGeocoding(false);
     }
@@ -448,7 +455,7 @@ export default function ProfileScreen(_props: NativeStackScreenProps<ProfileStac
         baseLng: coords.lng,
         googleReviewsUrl: googleReviewsUrl.trim() || undefined,
       });
-      setLogoUrl(saved.logoUrl ?? null);
+      setLogoUrl(saved.logoUrl ? extractMediaKey(saved.logoUrl) ?? saved.logoUrl : null);
       setLogoPreviewUri(saved.logoUrl ? resolveMediaUrl(saved.logoUrl) : null);
       if (saved.baseLat != null && saved.baseLng != null) {
         setBaseLat(saved.baseLat);
@@ -654,7 +661,17 @@ export default function ProfileScreen(_props: NativeStackScreenProps<ProfileStac
                     disabled={logoUploading}
                   >
                     {logoPreviewUri ? (
-                      <Image source={{ uri: logoPreviewUri }} style={s.photoImage} resizeMode="cover" />
+                      <RemotePhoto
+                        uri={logoPreviewUri}
+                        style={s.photoImage}
+                        containerStyle={s.photoImage}
+                        resizeMode="cover"
+                        fallback={
+                          <Text style={s.photoInitials}>
+                            {companyName.trim() ? companyName.trim().slice(0, 2).toUpperCase() : 'CO'}
+                          </Text>
+                        }
+                      />
                     ) : (
                       <Text style={s.photoInitials}>
                         {companyName.trim() ? companyName.trim().slice(0, 2).toUpperCase() : 'CO'}
@@ -870,7 +887,9 @@ export default function ProfileScreen(_props: NativeStackScreenProps<ProfileStac
                       {locating ? (
                         <ActivityIndicator size="small" color={colors.text} />
                       ) : (
-                        <Text style={s.serviceAreaBtnSecondaryText}>Current location</Text>
+                        <Text style={s.serviceAreaBtnSecondaryText}>
+                          {baseLat != null ? 'Update GPS location' : 'Set GPS location'}
+                        </Text>
                       )}
                     </Pressable>
                     <Pressable
